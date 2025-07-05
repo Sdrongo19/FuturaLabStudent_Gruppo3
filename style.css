@@ -226,6 +226,12 @@ body {
     display: block;
 }
 
+.crosshair.login-target {
+    background: #ff8c00 !important;
+    border: 2px solid #ffffff !important;
+    box-shadow: 0 0 10px #ff8c00 !important;
+}
+
 /* Overlay per quando il gioco è in pausa */
 #pause-overlay {
     position: fixed;

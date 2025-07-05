@@ -548,11 +548,17 @@ function interactWithProvetta(provetta) {
  * Gestisce gli eventi del mouse
  */
 function setupMouseEvents() {
-    // Event listener per il click
+    // Event listener per il click su canvas
     renderer.domElement.addEventListener('click', onMouseClick, false);
+    
+    // Event listener per il click su document (cattura anche in modalità pointer lock)
+    document.addEventListener('click', onMouseClick, false);
     
     // Event listener per il movimento del mouse (per hover effects)
     renderer.domElement.addEventListener('mousemove', onMouseMove, false);
+    document.addEventListener('mousemove', onMouseMove, false);
+    
+    window.debugLogger.log('Eventi del mouse configurati');
 }
 
 /**
@@ -560,9 +566,18 @@ function setupMouseEvents() {
  * @param {Event} event - Evento del mouse
  */
 function onMouseClick(event) {
-    // Calcola la posizione del mouse normalizzata
-    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    // Se siamo in modalità pointer lock, usa il centro dello schermo
+    if (fpControls && fpControls.isLocked) {
+        // In modalità FPS, il raycast parte dal centro dello schermo
+        mouse.x = 0;
+        mouse.y = 0;
+        window.debugLogger.log('Click in modalità FPS', {centro: true});
+    } else {
+        // Modalità normale, usa la posizione del mouse
+        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        window.debugLogger.log('Click in modalità normale', {x: mouse.x, y: mouse.y});
+    }
     
     // Aggiorna il raycaster
     raycaster.setFromCamera(mouse, camera);
@@ -570,12 +585,40 @@ function onMouseClick(event) {
     // Trova gli oggetti intersecati
     const intersects = raycaster.intersectObjects(scene.children, true);
     
+    window.debugLogger.log('Oggetti intersecati', {numero: intersects.length});
+    
     if (intersects.length > 0) {
         const clickedObject = intersects[0].object;
+        window.debugLogger.log('Oggetto cliccato', {nome: clickedObject.name, userData: clickedObject.userData});
         
         // Prima controlla se è un elemento del login 3D
-        if (login3D && login3D.handleClick(clickedObject)) {
-            return; // Il login ha gestito il click
+        if (login3D && login3D.isVisible()) {
+            window.debugLogger.log('Login è visibile, tentando gestione click');
+            
+            // Se l'oggetto cliccato non ha userData valido, cerca nell'area circostante
+            let targetObject = clickedObject;
+            if (!clickedObject.userData || (!clickedObject.userData.type)) {
+                window.debugLogger.log('Oggetto senza userData, cercando nell\'area circostante');
+                
+                // Cerca tra tutti gli oggetti intersecati per trovare uno con userData valido
+                for (let i = 0; i < Math.min(intersects.length, 5); i++) {
+                    const obj = intersects[i].object;
+                    if (obj.userData && (obj.userData.type === 'key' || obj.userData.type === 'button' || obj.userData.type === 'inputField')) {
+                        targetObject = obj;
+                        window.debugLogger.log('Trovato oggetto valido nell\'area', {userData: obj.userData});
+                        break;
+                    }
+                }
+            }
+            
+            if (login3D.handleClick(targetObject)) {
+                window.debugLogger.log('Click gestito dal sistema di login');
+                return; // Il login ha gestito il click
+            } else {
+                window.debugLogger.log('Login non ha gestito il click');
+            }
+        } else {
+            window.debugLogger.log('Login non visibile o non inizializzato');
         }
         
         // Poi controlla se è una provetta
@@ -585,8 +628,13 @@ function onMouseClick(event) {
         }
         
         if (provetta && provetta.userData && provetta.userData.type === 'provetta') {
+            window.debugLogger.log('Click su provetta');
             interactWithProvetta(provetta);
+        } else {
+            window.debugLogger.log('Click su oggetto non interattivo');
         }
+    } else {
+        window.debugLogger.log('Nessun oggetto intersecato');
     }
 }
 
@@ -595,9 +643,15 @@ function onMouseClick(event) {
  * @param {Event} event - Evento del mouse
  */
 function onMouseMove(event) {
-    // Calcola la posizione del mouse normalizzata
-    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    // Se siamo in modalità pointer lock, usa il centro dello schermo
+    if (fpControls && fpControls.isLocked) {
+        mouse.x = 0;
+        mouse.y = 0;
+    } else {
+        // Calcola la posizione del mouse normalizzata
+        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    }
     
     // Aggiorna il raycaster
     raycaster.setFromCamera(mouse, camera);
@@ -605,11 +659,21 @@ function onMouseMove(event) {
     // Trova gli oggetti intersecati
     const intersects = raycaster.intersectObjects(scene.children, true);
     
-    // Cambia il cursore se stiamo hovering su una provetta
+    // Cambia il cursore se stiamo hovering su una provetta o sul login
     let isHoveringProvetta = false;
+    let isHoveringLogin = false;
     
     if (intersects.length > 0) {
         const hoveredObject = intersects[0].object;
+        
+        // Controlla se stiamo hovering sul login 3D
+        if (login3D && login3D.isVisible() && hoveredObject.userData) {
+            if (hoveredObject.userData.type === 'key' || 
+                hoveredObject.userData.type === 'inputField' || 
+                hoveredObject.userData.type === 'button') {
+                isHoveringLogin = true;
+            }
+        }
         
         // Risali nella gerarchia per trovare l'oggetto provetta
         let provetta = hoveredObject;
@@ -622,8 +686,20 @@ function onMouseMove(event) {
         }
     }
     
-    // Cambia il cursore
-    renderer.domElement.style.cursor = isHoveringProvetta ? 'pointer' : 'grab';
+    // Aggiorna il crosshair in modalità FPS
+    if (fpControls && fpControls.isLocked) {
+        const crosshair = document.querySelector('.crosshair');
+        if (crosshair) {
+            if (isHoveringLogin) {
+                crosshair.classList.add('login-target');
+            } else {
+                crosshair.classList.remove('login-target');
+            }
+        }
+    } else {
+        // Cambia il cursore in modalità normale
+        renderer.domElement.style.cursor = (isHoveringProvetta || isHoveringLogin) ? 'pointer' : 'grab';
+    }
 }
 
 /**
