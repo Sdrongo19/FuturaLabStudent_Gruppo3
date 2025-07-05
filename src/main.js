@@ -36,8 +36,18 @@ let prevTime = performance.now();
 const MOVEMENT_SPEED = 10.0;
 const JUMP_SPEED = 20.0;
 const GRAVITY = 30.0;
-const PLAYER_HEIGHT = 10.0; // Altezza della camera dal suolo
+const PLAYER_HEIGHT = 10.0; // Altezza della camera dal suolo (altezza occhi)
+const PLAYER_BODY_HEIGHT = 6.0; // Altezza del corpo del personaggio
+const PLAYER_FOOT_HEIGHT = 0.5; // Altezza dei piedi dal suolo
 const MIN_CAMERA_HEIGHT = PLAYER_HEIGHT - 0.5; // Altezza minima per le collisioni
+
+// Variabili per le collisioni
+let collidableObjects = [];
+const COLLISION_DISTANCE = 1.5; // Distanza di collisione ridotta per essere più precisi
+const collisionRaycaster = new THREE.Raycaster();
+const playerDirection = new THREE.Vector3();
+const playerPosition = new THREE.Vector3();
+const footPosition = new THREE.Vector3();
 
 /**
  * Inizializza la scena Three.js
@@ -140,6 +150,172 @@ function loadGLBModel(path, onLoad, onError) {
 }
 
 /**
+ * Controlla le collisioni a livello dei piedi del personaggio
+ * @param {THREE.Vector3} direction - La direzione in cui controllare
+ * @returns {boolean} - True se c'è una collisione
+ */
+function checkFootCollision(direction) {
+    // Ottieni la posizione attuale del giocatore (telecamera)
+    fpControls.getObject().getWorldPosition(playerPosition);
+    
+    // Calcola la posizione dei piedi (molto più in basso rispetto alla telecamera)
+    footPosition.copy(playerPosition);
+    footPosition.y = PLAYER_FOOT_HEIGHT; // Posizione dei piedi vicino al suolo
+    
+    // Imposta il raycaster dalla posizione dei piedi nella direzione del movimento
+    collisionRaycaster.set(footPosition, direction);
+    
+    // Controlla le intersezioni con gli oggetti collidibili
+    const intersections = collisionRaycaster.intersectObjects(collidableObjects, true);
+    
+    // Filtra le collisioni per altezza - solo oggetti che bloccano il movimento a livello dei piedi
+    for (let intersection of intersections) {
+        if (intersection.distance < COLLISION_DISTANCE) {
+            // Controlla se l'oggetto è abbastanza alto da bloccare il movimento
+            // (ad esempio, muri e mobili alti, ma non tavoli bassi)
+            const hitPoint = intersection.point;
+            const objectHeight = intersection.object.geometry.boundingBox ? 
+                intersection.object.geometry.boundingBox.max.y : 
+                hitPoint.y;
+            
+            // Se l'oggetto è più alto del corpo del personaggio, blocca il movimento
+            if (objectHeight > PLAYER_BODY_HEIGHT) {
+                return true;
+            }
+        }
+    }
+    
+    return false;
+}
+
+/**
+ * Controlla le collisioni a livello del corpo del personaggio
+ * @param {THREE.Vector3} direction - La direzione in cui controllare
+ * @returns {boolean} - True se c'è una collisione
+ */
+function checkBodyCollision(direction) {
+    // Ottieni la posizione attuale del giocatore (telecamera)
+    fpControls.getObject().getWorldPosition(playerPosition);
+    
+    // Controlla le collisioni a diverse altezze del corpo
+    const bodyCheckHeights = [
+        PLAYER_FOOT_HEIGHT + 1.0,  // Piedi
+        PLAYER_FOOT_HEIGHT + 3.0,  // Vita
+        PLAYER_FOOT_HEIGHT + 5.0   // Petto
+    ];
+    
+    for (let height of bodyCheckHeights) {
+        const checkPosition = playerPosition.clone();
+        checkPosition.y = height;
+        
+        collisionRaycaster.set(checkPosition, direction);
+        const intersections = collisionRaycaster.intersectObjects(collidableObjects, true);
+        
+        if (intersections.length > 0 && intersections[0].distance < COLLISION_DISTANCE) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+/**
+ * Aggiunge un oggetto alla lista degli oggetti con cui si può collidere
+ * @param {THREE.Object3D} object - L'oggetto da rendere collidibile
+ */
+function addCollidableObject(object) {
+    object.traverse((child) => {
+        if (child.isMesh) {
+            // Calcola il bounding box per determinare l'altezza dell'oggetto
+            if (!child.geometry.boundingBox) {
+                child.geometry.computeBoundingBox();
+            }
+            
+            collidableObjects.push(child);
+            console.log(`Aggiunto oggetto collidibile: ${child.name || 'unnamed mesh'} - Altezza: ${child.geometry.boundingBox ? child.geometry.boundingBox.max.y : 'unknown'}`);
+        }
+    });
+}
+
+/**
+ * Aggiorna il movimento del personaggio
+ */
+function updateMovement() {
+    if (!fpControls.isLocked) return;
+
+    const time = performance.now();
+    const delta = (time - prevTime) / 1000;
+
+    // Applica la gravità
+    velocity.y -= GRAVITY * delta;
+
+    // Calcola la direzione del movimento
+    direction.z = Number(moveForward) - Number(moveBackward);
+    direction.x = Number(moveRight) - Number(moveLeft);
+    direction.normalize();
+
+    // Movimento avanti/indietro
+    if (moveForward || moveBackward) {
+        // Ottieni la direzione in cui sta guardando il giocatore
+        playerDirection.setFromMatrixColumn(camera.matrix, 0);
+        playerDirection.crossVectors(camera.up, playerDirection);
+        playerDirection.y = 0; // Mantieni il movimento orizzontale
+        playerDirection.normalize();
+        
+        // Calcola il movimento previsto
+        const moveZ = direction.z * MOVEMENT_SPEED * delta;
+        
+        // Controlla la collisione del corpo nella direzione Z
+        if (moveZ !== 0) {
+            playerDirection.multiplyScalar(Math.sign(moveZ));
+            if (!checkBodyCollision(playerDirection)) {
+                fpControls.moveForward(moveZ);
+            } else {
+                console.log('Collisione rilevata - movimento bloccato avanti/indietro');
+            }
+        }
+    }
+
+    // Movimento laterale
+    if (moveLeft || moveRight) {
+        // Ottieni la direzione laterale
+        playerDirection.setFromMatrixColumn(camera.matrix, 0);
+        playerDirection.y = 0; // Mantieni il movimento orizzontale
+        playerDirection.normalize();
+        
+        // Calcola il movimento previsto
+        const moveX = direction.x * MOVEMENT_SPEED * delta;
+        
+        // Controlla la collisione del corpo nella direzione X
+        if (moveX !== 0) {
+            playerDirection.multiplyScalar(Math.sign(moveX));
+            if (!checkBodyCollision(playerDirection)) {
+                fpControls.moveRight(moveX);
+            } else {
+                console.log('Collisione rilevata - movimento bloccato lateralmente');
+            }
+        }
+    }
+
+    // Applica il movimento verticale (salto/gravità)
+    fpControls.getObject().position.y += velocity.y * delta;
+
+    // Controlla la collisione con il pavimento
+    if (fpControls.getObject().position.y < MIN_CAMERA_HEIGHT) {
+        velocity.y = 0;
+        fpControls.getObject().position.y = MIN_CAMERA_HEIGHT;
+        canJump = true;
+    }
+
+    // Mantieni la telecamera sempre all'altezza corretta
+    if (fpControls.getObject().position.y < PLAYER_HEIGHT && canJump) {
+        fpControls.getObject().position.y = PLAYER_HEIGHT;
+    }
+
+    prevTime = time;
+}
+
+/**
  * Carica il modello della classroom
  */
 function loadClassroom() {
@@ -149,10 +325,10 @@ function loadClassroom() {
             classroomModel = gltf.scene;
             
             // Scala e posiziona il modello
-            classroomModel.scale.set(2, 2, 2); // Modifica questi valori in base alle dimensioni del tuo modello
+            classroomModel.scale.set(2, 2, 2);
             classroomModel.position.set(0, 0, 0);
             
-            // Abilita le ombre per tutti i mesh
+            // Abilita le ombre e aggiungi gli oggetti alla lista dei collidibili
             classroomModel.traverse((child) => {
                 if (child.isMesh) {
                     child.castShadow = true;
@@ -165,6 +341,9 @@ function loadClassroom() {
                     }
                 }
             });
+            
+            // Aggiungi tutti gli oggetti della classroom come collidibili
+            addCollidableObject(classroomModel);
             
             scene.add(classroomModel);
             console.log('Classroom caricata con successo');
@@ -231,6 +410,12 @@ function createSimpleClassroom() {
         leg.castShadow = true;
         scene.add(leg);
     });
+
+    // Aggiungi gli oggetti creati come collidibili
+    addCollidableObject(floor);
+    addCollidableObject(backWall);
+    addCollidableObject(leftWall);
+    addCollidableObject(desk);
 
     console.log('Classroom semplice creata');
 }
@@ -542,44 +727,6 @@ function onKeyUp(event) {
             moveRight = false;
             break;
     }
-}
-
-/**
- * Aggiorna il movimento del personaggio
- */
-function updateMovement() {
-    if (!fpControls.isLocked) return;
-
-    const time = performance.now();
-    const delta = (time - prevTime) / 1000;
-
-    // Applica la gravità
-    velocity.y -= GRAVITY * delta;
-
-    // Calcola la direzione del movimento
-    direction.z = Number(moveForward) - Number(moveBackward);
-    direction.x = Number(moveRight) - Number(moveLeft);
-    direction.normalize();
-
-    // Muovi il personaggio
-    if (moveForward || moveBackward) {
-        fpControls.moveForward(direction.z * MOVEMENT_SPEED * delta);
-    }
-    if (moveLeft || moveRight) {
-        fpControls.moveRight(direction.x * MOVEMENT_SPEED * delta);
-    }
-
-    // Applica il movimento verticale (salto/gravità)
-    fpControls.getObject().position.y += velocity.y * delta;
-
-    // Controlla la collisione con il pavimento
-    if (fpControls.getObject().position.y < MIN_CAMERA_HEIGHT) {
-        velocity.y = 0;
-        fpControls.getObject().position.y = MIN_CAMERA_HEIGHT;
-        canJump = true;
-    }
-
-    prevTime = time;
 }
 
 /**
