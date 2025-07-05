@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulazione Educativa VR - Three.js</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="container">
+        <!-- Canvas per la scena 3D -->
+        <canvas id="three-canvas"></canvas>
+        
+        <!-- Interfaccia utente minimale -->
+        <div id="ui-panel">
+            <h1>Simulazione Educativa VR</h1>
+            <button id="start-button">Inizia Esplorazione</button>
+            <button id="add-provetta-btn">Aggiungi Provetta</button>
+            <div id="loading-message">Caricamento modelli...</div>
+            <div id="instructions">
+                <h2>Controlli:</h2>
+                <p>W/A/S/D - Movimento</p>
+                <p>SPAZIO - Salta</p>
+                <p>Mouse - Guarda intorno</p>
+                <p>ESC - Pausa</p>
+                <p>Click - Interagisci con gli oggetti</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Caricamento Three.js e moduli necessari da CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    
+    <!-- Script principale -->
+    <script src="src/main.js"></script>
+</body>
+</html> 
