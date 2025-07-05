@@ -9,6 +9,7 @@ let classroomModel, provettaModel;
 let loadedProvette = []; // Array per tenere traccia delle provette caricate
 let raycaster, mouse;
 let isLoadingComplete = false;
+let login3D; // Sistema di login 3D
 
 // Colori per l'interazione con la provetta
 const PROVETTA_COLORS = [
@@ -572,7 +573,12 @@ function onMouseClick(event) {
     if (intersects.length > 0) {
         const clickedObject = intersects[0].object;
         
-        // Risali nella gerarchia per trovare l'oggetto provetta
+        // Prima controlla se è un elemento del login 3D
+        if (login3D && login3D.handleClick(clickedObject)) {
+            return; // Il login ha gestito il click
+        }
+        
+        // Poi controlla se è una provetta
         let provetta = clickedObject;
         while (provetta && (!provetta.userData || provetta.userData.type !== 'provetta')) {
             provetta = provetta.parent;
@@ -783,8 +789,102 @@ function setupUI() {
         addProvettaBtn.addEventListener('click', addProvetta);
     }
     
+    // Pulsante per mostrare il login
+    const loginBtn = document.getElementById('login-button');
+    if (loginBtn) {
+        loginBtn.addEventListener('click', () => {
+            if (login3D) {
+                login3D.showLogin();
+            }
+        });
+    }
+    
+    // Pulsante per logout
+    const logoutBtn = document.getElementById('logout-button');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', handleLogout);
+    }
+    
     // Event listener per il ridimensionamento della finestra
     window.addEventListener('resize', onWindowResize, false);
+}
+
+/**
+ * Gestisce il login riuscito
+ * @param {Object} user - Dati dell'utente
+ */
+function handleLoginSuccess(user) {
+    console.log('Utente loggato:', user);
+    
+    // Aggiorna l'interfaccia utente
+    const userInfo = document.getElementById('user-info');
+    const userName = document.getElementById('user-name');
+    const userRole = document.getElementById('user-role');
+    const loginButton = document.getElementById('login-button');
+    
+    if (userInfo && userName && userRole) {
+        userName.textContent = user.name;
+        userRole.textContent = user.role;
+        userInfo.style.display = 'block';
+        if (loginButton) loginButton.style.display = 'none';
+    }
+    
+    // Abilita funzionalità in base al ruolo
+    enableUserFeatures(user);
+}
+
+/**
+ * Gestisce il logout
+ */
+function handleLogout() {
+    console.log('Logout effettuato');
+    
+    // Aggiorna l'interfaccia utente
+    const userInfo = document.getElementById('user-info');
+    const loginButton = document.getElementById('login-button');
+    
+    if (userInfo) userInfo.style.display = 'none';
+    if (loginButton) loginButton.style.display = 'block';
+    
+    // Reset del sistema di login
+    if (login3D) {
+        login3D.resetForm();
+    }
+    
+    // Disabilita funzionalità specifiche
+    disableUserFeatures();
+}
+
+/**
+ * Abilita funzionalità in base al ruolo dell'utente
+ * @param {Object} user - Dati dell'utente
+ */
+function enableUserFeatures(user) {
+    switch (user.role) {
+        case 'admin':
+            console.log('Funzionalità admin abilitate');
+            // Abilita tutte le funzionalità
+            break;
+        case 'teacher':
+            console.log('Funzionalità docente abilitate');
+            // Abilita funzionalità per docenti
+            break;
+        case 'student':
+            console.log('Funzionalità studente abilitate');
+            // Abilita funzionalità limitate per studenti
+            break;
+        default:
+            console.log('Ruolo non riconosciuto');
+            break;
+    }
+}
+
+/**
+ * Disabilita le funzionalità specifiche dell'utente
+ */
+function disableUserFeatures() {
+    console.log('Funzionalità utente disabilitate');
+    // Disabilita funzionalità specifiche
 }
 
 /**
@@ -812,6 +912,12 @@ function init() {
     // Inizializza i controlli FPS
     initFPControls();
     
+    // Inizializza il sistema di login 3D
+    login3D = new Login3D(scene, camera, renderer);
+    
+    // Configura il callback per il login riuscito
+    window.onUserLogin = handleLoginSuccess;
+    
     // Posiziona la camera all'altezza corretta
     camera.position.set(10, PLAYER_HEIGHT, 10);
     
@@ -819,6 +925,10 @@ function init() {
     animate();
     
     console.log('Simulazione educativa VR inizializzata con successo!');
+    console.log('Utenti di esempio:');
+    console.log('- admin@futuralab.com / admin123');
+    console.log('- docente@futuralab.com / docente123');
+    console.log('- studente@futuralab.com / studente123');
 }
 
 // Avvia l'applicazione quando il DOM è caricato
