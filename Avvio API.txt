@@ -1,0 +1,89 @@
+Ti farò un resoconto completo su come avviare e utilizzare il progetto.
+1)Configurazione del Database:
+Assicurati che MySQL sia in esecuzione
+Esegui lo script futuraLab.sql per creare il database e le tabelle
+Nel file DatabaseConfig.java, modifica le credenziali:
+
+     private static final String URL = "jdbc:mysql://localhost:3306/futuralab";
+     private static final String USER = "root"; // il tuo username MySQL
+     private static final String PASSWORD = "root"; // la tua password MySQL
+
+2)Compilazione e Avvio:
+Apri il terminale nella cartella del progetto
+Esegui:
+
+   mvn clean install
+   mvn spring-boot:run
+
+L'applicazione sarà disponibile su http://localhost:8080
+3)API Disponibili:
+a)Login Insegnante:
+   POST http://localhost:8080/api/login
+   Content-Type: application/json
+
+   {
+       "username": "H.watson",
+       "password": "12345678"
+   }
+b)Ottenere Macrocategorie per Materia:
+   GET http://localhost:8080/api/macrocategorie/3
+(dove 3 è l'ID della materia)
+c)Creare una Richiesta di Simulazione:
+
+   POST http://localhost:8080/api/simulazione
+   Content-Type: application/json
+
+   {
+       "idMacrocategoria": 1,
+       "idInsegnante": 1,
+       "idClasse": 1
+   }
+
+d)Ottenere Studenti di una Classe:
+   GET http://localhost:8080/api/studenti/1
+(dove 1 è l'ID della classe)
+
+4)Come Testare con Postman:
+
+	Apri Postman
+	Crea una nuova richiesta
+	Seleziona il metodo (POST o GET)
+	Inserisci l'URL completo
+	Per richieste POST:
+		Vai in "Headers" e aggiungi Content-Type: application/json
+		Vai in "Body"
+		Seleziona "raw" e "JSON"
+		Inserisci il body JSON come mostrato negli esempi
+5)Esempio Pratico di Login:
+	Apri Postman
+	Crea nuova richiesta POST
+	URL: http://localhost:8080/api/login
+	Headers: Content-Type: application/json
+	Body:
+      {
+          "username": "H.watson",
+          "password": "12345678"
+      }
+	Clicca "Send"
+6)Credenziali di Test:
+
+Username: H.watson
+Password: 12345678
+Oppure
+Username: ultimo
+Password: 12345678
+Se hai problemi con qualsiasi passaggio o hai bisogno di chiarimenti, fammi sapere!
+
+
+Sì, mvn clean install è necessario per:
+Pulire i file compilati precedentemente (clean)
+Compilare il codice Java
+Scaricare le dipendenze necessarie (Spring Boot, MySQL Connector, ecc.)
+Creare il file JAR eseguibile
+Tuttavia, puoi eseguirlo solo la prima volta o quando:
+Aggiungi nuove dipendenze nel pom.xml
+Modifichi il codice sorgente
+Vuoi fare una pulizia completa del progetto
+Per l'uso quotidiano, se non hai fatto modifiche al codice, puoi avviare direttamente l'applicazione con:
+Apply to AppControlle...
+Se ricevi errori durante l'esecuzione di spring-boot:run, allora sì, dovresti eseguire prima mvn clean install per assicurarti che tutto sia compilato correttamente.
