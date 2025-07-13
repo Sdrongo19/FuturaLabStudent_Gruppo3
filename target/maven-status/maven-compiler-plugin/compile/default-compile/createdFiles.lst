@@ -1,0 +1,4 @@
+com\futuralab\backend\controllers\AppController.class
+com\futuralab\backend\Application.class
+com\futuralab\backend\config\DatabaseConfig.class
+com\futuralab\backend\models\Insegnante.class
