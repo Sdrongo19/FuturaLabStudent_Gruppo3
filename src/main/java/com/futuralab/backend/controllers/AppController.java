@@ -127,24 +127,6 @@ public class AppController {
         return items;
     }
 
-    @PostMapping("/simulazione")
-    public boolean creaRichiestaSimulazione(@RequestBody Map<String, Integer> request) {
-        String query = "INSERT INTO richiesta_simulazione (id_macrocategoria, id_insegnante, id_classe, stato) VALUES (?, ?, ?, 'richiesta')";
-        
-        try (Connection conn = DatabaseConfig.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(query)) {
-            
-            stmt.setInt(1, request.get("idMacrocategoria"));
-            stmt.setInt(2, request.get("idInsegnante"));
-            stmt.setInt(3, request.get("idClasse"));
-            
-            return stmt.executeUpdate() > 0;
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
-
     @PostMapping("/studenti")
     public List<String> getStudentiByClasse(@RequestBody Map<String, Integer> request) {
         List<String> studenti = new ArrayList<>();
@@ -202,6 +184,24 @@ public class AppController {
             e.printStackTrace();
         }
         return macrocategorie;
+    }
+
+    @PostMapping("/simulazione")
+    public boolean creaRichiestaSimulazione(@RequestBody Map<String, Integer> request) {
+        String query = "INSERT INTO richiesta_simulazione (id_macrocategoria, id_insegnante, id_classe, stato) VALUES (?, ?, ?, 'richiesta')";
+        
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            
+            stmt.setInt(1, request.get("idMacrocategoria"));
+            stmt.setInt(2, request.get("idInsegnante"));
+            stmt.setInt(3, request.get("idClasse"));
+            
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
     }
     
 } 

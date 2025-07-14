@@ -1,10 +1,10 @@
 CREATE DATABASE  IF NOT EXISTS `futuralab` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
 USE `futuralab`;
--- MySQL dump 10.13  Distrib 8.0.36, for Win64 (x86_64)
+-- MySQL dump 10.13  Distrib 8.0.42, for Win64 (x86_64)
 --
 -- Host: 127.0.0.1    Database: futuralab
 -- ------------------------------------------------------
--- Server version	8.0.37
+-- Server version	8.0.42
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -65,7 +65,7 @@ CREATE TABLE `classe_insegnante` (
 
 LOCK TABLES `classe_insegnante` WRITE;
 /*!40000 ALTER TABLE `classe_insegnante` DISABLE KEYS */;
-INSERT INTO `classe_insegnante` VALUES (1,1),(2,2);
+INSERT INTO `classe_insegnante` VALUES (1,1),(2,1),(2,2);
 /*!40000 ALTER TABLE `classe_insegnante` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -191,7 +191,7 @@ CREATE TABLE `preferiti` (
   PRIMARY KEY (`id`),
   KEY `insegnante_idx` (`id_insegnante`),
   CONSTRAINT `insegnante_pref` FOREIGN KEY (`id_insegnante`) REFERENCES `insegnante` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -200,6 +200,7 @@ CREATE TABLE `preferiti` (
 
 LOCK TABLES `preferiti` WRITE;
 /*!40000 ALTER TABLE `preferiti` DISABLE KEYS */;
+INSERT INTO `preferiti` VALUES (1,1),(2,2);
 /*!40000 ALTER TABLE `preferiti` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -219,7 +220,7 @@ CREATE TABLE `preferiti_item` (
   KEY `pref_macro_idx` (`id_macrocategoria`),
   CONSTRAINT `pref_item` FOREIGN KEY (`id_preferiti`) REFERENCES `preferiti` (`id`),
   CONSTRAINT `pref_macro` FOREIGN KEY (`id_macrocategoria`) REFERENCES `macrocategoria` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -228,6 +229,7 @@ CREATE TABLE `preferiti_item` (
 
 LOCK TABLES `preferiti_item` WRITE;
 /*!40000 ALTER TABLE `preferiti_item` DISABLE KEYS */;
+INSERT INTO `preferiti_item` VALUES (1,1,1),(2,1,2),(3,2,1),(4,2,2),(5,3,1),(6,4,2);
 /*!40000 ALTER TABLE `preferiti_item` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -244,7 +246,7 @@ CREATE TABLE `recenti` (
   PRIMARY KEY (`id`),
   KEY `recenti_insengnante_idx` (`id_insegnante`),
   CONSTRAINT `recenti_insengnante` FOREIGN KEY (`id_insegnante`) REFERENCES `insegnante` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -253,6 +255,7 @@ CREATE TABLE `recenti` (
 
 LOCK TABLES `recenti` WRITE;
 /*!40000 ALTER TABLE `recenti` DISABLE KEYS */;
+INSERT INTO `recenti` VALUES (1,1),(2,2);
 /*!40000 ALTER TABLE `recenti` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -272,7 +275,7 @@ CREATE TABLE `recenti_item` (
   KEY `recenti_macro_idx` (`id_macrocategoria`),
   CONSTRAINT `recenti_items` FOREIGN KEY (`id_recenti`) REFERENCES `recenti` (`id`),
   CONSTRAINT `recenti_macro` FOREIGN KEY (`id_macrocategoria`) REFERENCES `macrocategoria` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -281,6 +284,7 @@ CREATE TABLE `recenti_item` (
 
 LOCK TABLES `recenti_item` WRITE;
 /*!40000 ALTER TABLE `recenti_item` DISABLE KEYS */;
+INSERT INTO `recenti_item` VALUES (1,1,1),(2,1,2),(3,1,3);
 /*!40000 ALTER TABLE `recenti_item` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -414,4 +418,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-07-13 19:23:53
+-- Dump completed on 2025-07-14 18:19:42
