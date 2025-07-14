@@ -1,0 +1,21 @@
+Come silenziare le modifiche
+
+2. Lasciare il file nel repo ma “silenziare” le modifiche locali 🔇
+Se vuoi che il file resti nel repository ma non vedere più ogni piccola modifica nei Changes, puoi dirgli di “non curarsi” delle tue modifiche locali:
+
+bash
+Copia
+Modifica
+git update-index --skip-worktree src/main/java/com/futuralab/backend/config/DatabaseConfig.java
+Git continua a tenere la versione che hai già commit-tato (quindi il file c’è per tutti).
+
+Ogni modifica fatta solo in locale non verrà mostrata fra i cambiamenti e non finirà in commit/push.
+
+Per riattivare il tracking basta:
+
+bash
+Copia
+Modifica
+git update-index --no-skip-worktree src/main/java/com/futuralab/backend/config/DatabaseConfig.java
+Attenzione: se qualcun altro modifica quel file nel branch remoto, dovrai togliere il flag per poter fare git pull senza conflitti.
+
