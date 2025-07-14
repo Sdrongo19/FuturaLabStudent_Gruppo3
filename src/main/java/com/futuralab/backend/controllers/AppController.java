@@ -1,12 +1,23 @@
 package com.futuralab.backend.controllers;
 
-import com.futuralab.backend.config.DatabaseConfig;
-import com.futuralab.backend.models.Insegnante;
-import org.springframework.web.bind.annotation.*;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.futuralab.backend.config.DatabaseConfig;
+import com.futuralab.backend.models.Insegnante;
+import com.futuralab.backend.models.LoginResponse;
 
 @RestController
 @RequestMapping("/api")
@@ -14,7 +25,7 @@ import java.util.Map;
 public class AppController {
     
     @PostMapping("/login")
-    public Insegnante loginInsegnante(@RequestBody Map<String, String> credentials) {
+    public LoginResponse loginInsegnante(@RequestBody Map<String, String> credentials) {
         String query = "SELECT * FROM insegnante WHERE username = ? AND psw = ?";
         
         try (Connection conn = DatabaseConfig.getConnection();
@@ -26,7 +37,7 @@ public class AppController {
             ResultSet rs = stmt.executeQuery();
             
             if (rs.next()) {
-                return new Insegnante(
+                Insegnante insegnante = new Insegnante(
                     rs.getInt("id"),
                     rs.getString("nome"),
                     rs.getString("cognome"),
@@ -34,11 +45,14 @@ public class AppController {
                     rs.getString("email"),
                     rs.getString("psw")
                 );
+                return new LoginResponse(true, "Login effettuato con successo", insegnante);
+            } else {
+                return new LoginResponse(false, "Credenziali non valide", null);
             }
         } catch (SQLException e) {
             e.printStackTrace();
+            return new LoginResponse(false, "Errore durante il login: " + e.getMessage(), null);
         }
-        return null;
     }
 
     @PostMapping("/classeInsegnante")
