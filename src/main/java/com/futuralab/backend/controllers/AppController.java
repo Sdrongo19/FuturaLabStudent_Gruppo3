@@ -41,15 +41,37 @@ public class AppController {
         return null;
     }
 
-    @GetMapping("/macrocategorie/{idMateria}")
-    public List<String> getMacrocategorieByMateria(@PathVariable int idMateria) {
+    @PostMapping("/classeInsegnante")
+    public List<String> getClasseInsegnante(@RequestBody Map<String, Integer> request) {
+        List<String> classi = new ArrayList<>();
+        String query = "SELECT cl.* FROM classe As cl LEFT JOIN classe_insegnante As ic ON cl.id = ic.id_classe WHERE ic.id_insegnante = ?";
+        
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            
+            stmt.setInt(1, request.get("idInsegnante"));
+            ResultSet rs = stmt.executeQuery();
+            
+            while (rs.next()) {
+                classi.add(rs.getString("id"));
+                classi.add(rs.getString("grado"));
+                classi.add(rs.getString("nome_scuola"));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return classi;
+    }
+
+    @PostMapping("/macrocategorie")
+    public List<String> getMacrocategorieByMateria(@RequestBody Map<String, Integer> request) {
         List<String> macrocategorie = new ArrayList<>();
         String query = "SELECT nome FROM macrocategoria WHERE id_materia = ?";
         
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(query)) {
             
-            stmt.setInt(1, idMateria);
+            stmt.setInt(1, request.get("idMateria"));
             ResultSet rs = stmt.executeQuery();
             
             while (rs.next()) {
@@ -79,15 +101,15 @@ public class AppController {
         }
     }
 
-    @GetMapping("/studenti/{idClasse}")
-    public List<String> getStudentiByClasse(@PathVariable int idClasse) {
+    @PostMapping("/studenti")
+    public List<String> getStudentiByClasse(@RequestBody Map<String, Integer> request) {
         List<String> studenti = new ArrayList<>();
         String query = "SELECT nome, cognome FROM studenti WHERE id_classe = ?";
         
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(query)) {
             
-            stmt.setInt(1, idClasse);
+            stmt.setInt(1, request.get("idClasse"));
             ResultSet rs = stmt.executeQuery();
             
             while (rs.next()) {
@@ -99,4 +121,43 @@ public class AppController {
         }
         return studenti;
     }
+
+    @GetMapping("/materie")
+    public List<String> getMaterie() {
+        List<String> materie = new ArrayList<>();
+        String query = "SELECT nome FROM materia";
+        
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            
+            ResultSet rs = stmt.executeQuery();
+            
+            while (rs.next()) {
+                materie.add(rs.getString("nome"));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return materie;
+    }
+
+    @GetMapping("/macrocategorie")
+    public List<String> getMacrocategorie() {
+        List<String> macrocategorie = new ArrayList<>();
+        String query = "SELECT nome FROM macrocategoria";
+        
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            
+            ResultSet rs = stmt.executeQuery();
+            
+            while (rs.next()) {
+                macrocategorie.add(rs.getString("nome"));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return macrocategorie;
+    }
+    
 } 
