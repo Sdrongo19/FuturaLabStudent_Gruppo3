@@ -83,6 +83,50 @@ public class AppController {
         return macrocategorie;
     }
 
+    @PostMapping("/recentiItems")
+    public List<String> getRecentiItems(@RequestBody Map<String, Integer> request) {
+        List<String> items = new ArrayList<>();
+        String query = "SELECT ri.* FROM recenti_item As ri JOIN recenti as rec ON ri.id_recenti = rec.id WHERE rec.id_insegnante = ?";
+        
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            
+            stmt.setInt(1, request.get("idInsegnante"));
+            ResultSet rs = stmt.executeQuery();
+            
+            while (rs.next()) {
+                items.add(rs.getString("id"));
+                items.add(rs.getString("id_recenti"));
+                items.add(rs.getString("id_macrocategoria"));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return items;
+    }
+
+    @PostMapping("/preferitiItems")
+    public List<String> getPreferitiItems(@RequestBody Map<String, Integer> request) {
+        List<String> items = new ArrayList<>();
+        String query = "SELECT pi.* FROM preferiti_item As pi JOIN preferiti as pref ON pi.id_preferiti = pref.id WHERE pref.id_insegnante = ?";
+        
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            
+            stmt.setInt(1, request.get("idInsegnante"));
+            ResultSet rs = stmt.executeQuery();
+            
+            while (rs.next()) {
+                items.add(rs.getString("id"));
+                items.add(rs.getString("id_preferiti"));
+                items.add(rs.getString("id_macrocategoria"));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return items;
+    }
+
     @PostMapping("/simulazione")
     public boolean creaRichiestaSimulazione(@RequestBody Map<String, Integer> request) {
         String query = "INSERT INTO richiesta_simulazione (id_macrocategoria, id_insegnante, id_classe, stato) VALUES (?, ?, ?, 'richiesta')";
