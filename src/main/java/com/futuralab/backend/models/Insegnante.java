@@ -7,15 +7,17 @@ public class Insegnante {
     private String username;
     private String email;
     private String psw;
+    private Integer idClasse;
 
     // Costruttore
-    public Insegnante(int id, String nome, String cognome, String username, String email, String psw) {
+    public Insegnante(int id, String nome, String cognome, String username, String email, String psw, Integer idClasse) {
         this.id = id;
         this.nome = nome;
         this.cognome = cognome;
         this.username = username;
         this.email = email;
         this.psw = psw;
+        this.idClasse = idClasse;
     }
 
     // Getters e Setters
@@ -36,4 +38,7 @@ public class Insegnante {
 
     public String getPsw() { return psw; }
     public void setPsw(String psw) { this.psw = psw; }
+
+    public Integer getIdClasse() { return idClasse; }
+    public void setIdClasse(Integer idClasse) { this.idClasse = idClasse; }
 } 

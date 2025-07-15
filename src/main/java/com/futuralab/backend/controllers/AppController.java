@@ -43,7 +43,8 @@ public class AppController {
                     rs.getString("cognome"),
                     rs.getString("username"),
                     rs.getString("email"),
-                    rs.getString("psw")
+                    rs.getString("psw"),
+                    rs.getInt("id_classe")
                 );
                 return new LoginResponse(true, "Login effettuato con successo", insegnante);
             } else {

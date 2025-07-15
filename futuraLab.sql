@@ -42,32 +42,6 @@ INSERT INTO `classe` VALUES (1,'1','Tommaso D\'Aquino'),(2,'2','Medaglie D\'Oro'
 /*!40000 ALTER TABLE `classe` ENABLE KEYS */;
 UNLOCK TABLES;
 
---
--- Table structure for table `classe_insegnante`
---
-
-DROP TABLE IF EXISTS `classe_insegnante`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `classe_insegnante` (
-  `id_classe` int NOT NULL,
-  `id_insegnante` int NOT NULL,
-  PRIMARY KEY (`id_classe`,`id_insegnante`),
-  KEY `insegnante_idx` (`id_insegnante`),
-  CONSTRAINT `classe` FOREIGN KEY (`id_classe`) REFERENCES `classe` (`id`),
-  CONSTRAINT `insegnante` FOREIGN KEY (`id_insegnante`) REFERENCES `insegnante` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `classe_insegnante`
---
-
-LOCK TABLES `classe_insegnante` WRITE;
-/*!40000 ALTER TABLE `classe_insegnante` DISABLE KEYS */;
-INSERT INTO `classe_insegnante` VALUES (1,1),(2,1),(2,2);
-/*!40000 ALTER TABLE `classe_insegnante` ENABLE KEYS */;
-UNLOCK TABLES;
 
 --
 -- Table structure for table `classe_materia`
@@ -110,9 +84,11 @@ CREATE TABLE `insegnante` (
   `username` varchar(32) NOT NULL,
   `email` varchar(32) NOT NULL,
   `psw` varchar(256) NOT NULL,
+  `id_classe` int NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `username_UNIQUE` (`username`),
-  UNIQUE KEY `email_UNIQUE` (`email`)
+  UNIQUE KEY `email_UNIQUE` (`email`),
+  CONSTRAINT `classe` FOREIGN KEY (`id_classe`) REFERENCES `classe` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -122,7 +98,7 @@ CREATE TABLE `insegnante` (
 
 LOCK TABLES `insegnante` WRITE;
 /*!40000 ALTER TABLE `insegnante` DISABLE KEYS */;
-INSERT INTO `insegnante` VALUES (1,'Emma','Watson','H.watson','h.watson@gmail.com','12345678'),(2,'Niccolò','Morriconi','ultimo','ultimo22@gmail.com','12345678');
+INSERT INTO `insegnante` VALUES (1,'Emma','Watson','H.watson','h.watson@gmail.com','12345678',1),(2,'Niccolò','Morriconi','ultimo','ultimo22@gmail.com','12345678',2);
 /*!40000 ALTER TABLE `insegnante` ENABLE KEYS */;
 UNLOCK TABLES;
 
