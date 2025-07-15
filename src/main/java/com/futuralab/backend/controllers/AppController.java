@@ -59,7 +59,7 @@ public class AppController {
     @PostMapping("/classeInsegnante")
     public List<String> getClasseInsegnante(@RequestBody Map<String, Integer> request) {
         List<String> classi = new ArrayList<>();
-        String query = "SELECT cl.* FROM classe As cl LEFT JOIN classe_insegnante As ic ON cl.id = ic.id_classe WHERE ic.id_insegnante = ?";
+        String query = "SELECT cl.* FROM classe As cl JOIN insegnante As i ON i.id_classe = cl.id WHERE i.id = ?";
         
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(query)) {
