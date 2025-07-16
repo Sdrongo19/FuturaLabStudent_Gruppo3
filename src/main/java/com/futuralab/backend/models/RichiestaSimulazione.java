@@ -6,16 +6,18 @@ public class RichiestaSimulazione {
     private int idInsegnante;
     private String stato;
     private int idClasse;
+    private int isVideo;
 
     // Costruttore
     public RichiestaSimulazione() {}
 
-    public RichiestaSimulazione(int id, int idMacrocategoria, int idInsegnante, String stato, int idClasse) {
+    public RichiestaSimulazione(int id, int idMacrocategoria, int idInsegnante, String stato, int idClasse, int isVideo) {
         this.id = id;
         this.idMacrocategoria = idMacrocategoria;
         this.idInsegnante = idInsegnante;
         this.stato = stato;
         this.idClasse = idClasse;
+        this.isVideo = isVideo;
     }
 
     // Getters e Setters
@@ -33,4 +35,7 @@ public class RichiestaSimulazione {
 
     public int getIdClasse() { return idClasse; }
     public void setIdClasse(int idClasse) { this.idClasse = idClasse; }
+
+    public int getIsVideo() { return isVideo; }
+    public void setIsVideo(int isVideo) { this.isVideo = isVideo; }
 } 

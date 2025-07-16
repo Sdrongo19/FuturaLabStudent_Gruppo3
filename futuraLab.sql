@@ -277,6 +277,7 @@ CREATE TABLE `richiesta_simulazione` (
   `id_insegnante` int NOT NULL,
   `stato` enum('richiesta','avviato','conclusa') NOT NULL DEFAULT 'richiesta',
   `id_classe` int NOT NULL,
+  `isVideo` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   KEY `macro_simulazione_idx` (`id_macrocategoria`),
   KEY `insegnante_simulazione_idx` (`id_insegnante`),
@@ -304,13 +305,13 @@ DROP TABLE IF EXISTS `simulazione_studenti`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `simulazione_studenti` (
-  `id_studenti` int NOT NULL AUTO_INCREMENT,
+  `id_studente` int NOT NULL AUTO_INCREMENT,
   `id_richiesta_simulazione` int NOT NULL,
   `stato` enum('nonIniziato','inCorso','finito') NOT NULL DEFAULT 'nonIniziato',
-  PRIMARY KEY (`id_studenti`,`id_richiesta_simulazione`),
+  PRIMARY KEY (`id_studente`,`id_richiesta_simulazione`),
   KEY `sim_idx` (`id_richiesta_simulazione`),
   CONSTRAINT `sim` FOREIGN KEY (`id_richiesta_simulazione`) REFERENCES `richiesta_simulazione` (`id`),
-  CONSTRAINT `studenti` FOREIGN KEY (`id_studenti`) REFERENCES `studenti` (`id`)
+  CONSTRAINT `studente` FOREIGN KEY (`id_studente`) REFERENCES `studente` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -327,10 +328,10 @@ UNLOCK TABLES;
 -- Table structure for table `studenti`
 --
 
-DROP TABLE IF EXISTS `studenti`;
+DROP TABLE IF EXISTS `studente`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `studenti` (
+CREATE TABLE `studente` (
   `id` int NOT NULL AUTO_INCREMENT,
   `nome` varchar(64) NOT NULL,
   `cognome` varchar(64) NOT NULL,
@@ -350,10 +351,10 @@ CREATE TABLE `studenti` (
 -- Dumping data for table `studenti`
 --
 
-LOCK TABLES `studenti` WRITE;
-/*!40000 ALTER TABLE `studenti` DISABLE KEYS */;
-INSERT INTO `studenti` VALUES (1,'Luca','Rossi','lrossi','luca.rossi@example.it',1,'12345678'),(2,'Giulia','Bianchi','gbianchi','giulia.bianchi@example.it',1,'12345678'),(3,'Marco','Verdi','mverdi','marco.verdi@example.it',1,'12345678'),(4,'Elena','Ferrari','eferrari','elena.ferrari@example.it',1,'12345678'),(5,'Alessia','Conti','aconti','alessia.conti@example.it',1,'12345678'),(6,'Paolo','Esposito','pesposito','paolo.esposito@example.it',1,'12345678'),(7,'Federica','Moretti','fmoretti','federica.moretti@example.it',1,'12345678'),(8,'Simone','Rinaldi','srinaldi','simone.rinaldi@example.it',1,'12345678'),(9,'Sofia','Gatti','sgatti','sofia.gatti@example.it',1,'12345678'),(10,'Andrea','Marchetti','amarchetti','andrea.marchetti@example.it',1,'12345678'),(11,'Davide','Gallo','dgallo','davide.gallo@example.it',2,'12345678'),(12,'Sara','Romano','sromano','sara.romano@example.it',2,'12345678'),(13,'Matteo','Greco','mgreco','matteo.greco@example.it',2,'12345678'),(14,'Chiara','Costa','ccosta','chiara.costa@example.it',2,'12345678'),(15,'Francesco','Longo','flongo','francesco.longo@example.it',2,'12345678'),(16,'Martina','Deluca','mdeluca','martina.deluca@example.it',2,'12345678'),(17,'Filippo','Testa','ftesta','filippo.testa@example.it',2,'12345678'),(18,'Laura','Serra','lserra','laura.serra@example.it',2,'12345678'),(19,'Riccardo','Fontana','rfontana','riccardo.fontana@example.it',2,'12345678'),(20,'Valentina','Leone','vleone','valentina.leone@example.it',2,'12345678');
-/*!40000 ALTER TABLE `studenti` ENABLE KEYS */;
+LOCK TABLES `studente` WRITE;
+/*!40000 ALTER TABLE `studente` DISABLE KEYS */;
+INSERT INTO `studente` VALUES (1,'Luca','Rossi','lrossi','luca.rossi@example.it',1,'12345678'),(2,'Giulia','Bianchi','gbianchi','giulia.bianchi@example.it',1,'12345678'),(3,'Marco','Verdi','mverdi','marco.verdi@example.it',1,'12345678'),(4,'Elena','Ferrari','eferrari','elena.ferrari@example.it',1,'12345678'),(5,'Alessia','Conti','aconti','alessia.conti@example.it',1,'12345678'),(6,'Paolo','Esposito','pesposito','paolo.esposito@example.it',1,'12345678'),(7,'Federica','Moretti','fmoretti','federica.moretti@example.it',1,'12345678'),(8,'Simone','Rinaldi','srinaldi','simone.rinaldi@example.it',1,'12345678'),(9,'Sofia','Gatti','sgatti','sofia.gatti@example.it',1,'12345678'),(10,'Andrea','Marchetti','amarchetti','andrea.marchetti@example.it',1,'12345678'),(11,'Davide','Gallo','dgallo','davide.gallo@example.it',2,'12345678'),(12,'Sara','Romano','sromano','sara.romano@example.it',2,'12345678'),(13,'Matteo','Greco','mgreco','matteo.greco@example.it',2,'12345678'),(14,'Chiara','Costa','ccosta','chiara.costa@example.it',2,'12345678'),(15,'Francesco','Longo','flongo','francesco.longo@example.it',2,'12345678'),(16,'Martina','Deluca','mdeluca','martina.deluca@example.it',2,'12345678'),(17,'Filippo','Testa','ftesta','filippo.testa@example.it',2,'12345678'),(18,'Laura','Serra','lserra','laura.serra@example.it',2,'12345678'),(19,'Riccardo','Fontana','rfontana','riccardo.fontana@example.it',2,'12345678'),(20,'Valentina','Leone','vleone','valentina.leone@example.it',2,'12345678');
+/*!40000 ALTER TABLE `studente` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -372,7 +373,7 @@ CREATE TABLE `valutazione_simulazione` (
   KEY `stud_idx` (`id_studente`),
   KEY `simulazione_idx` (`id_simulazione`),
   CONSTRAINT `simulazione` FOREIGN KEY (`id_simulazione`) REFERENCES `richiesta_simulazione` (`id`),
-  CONSTRAINT `stud` FOREIGN KEY (`id_studente`) REFERENCES `studenti` (`id`)
+  CONSTRAINT `stud` FOREIGN KEY (`id_studente`) REFERENCES `studente` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

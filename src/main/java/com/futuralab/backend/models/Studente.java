@@ -7,19 +7,19 @@ public class Studente {
     private String username;
     private String email;
     private int idClasse;
-    private String password;
+    private String psw;
 
     // Costruttore
     public Studente() {}
 
-    public Studente(int id, String nome, String cognome, String username, String email, int idClasse, String password) {
+    public Studente(int id, String nome, String cognome, String username, String email, int idClasse, String psw) {
         this.id = id;
         this.nome = nome;
         this.cognome = cognome;
         this.username = username;
         this.email = email;
         this.idClasse = idClasse;
-        this.password = password;
+        this.psw = psw;
     }
 
     // Getters e Setters
@@ -41,6 +41,6 @@ public class Studente {
     public int getIdClasse() { return idClasse; }
     public void setIdClasse(int idClasse) { this.idClasse = idClasse; }
 
-    public String getPassword() { return password; }
-    public void setPassword(String password) { this.password = password; }
+    public String getPsw() { return psw; }
+    public void setPsw(String psw) { this.psw = psw; }
 } 
