@@ -137,6 +137,33 @@ public class AppController {
         return macrocategorie;
     }
 
+    @PostMapping("/studentiByClasse")
+    public List<Studente> getStudentiByClasse(@RequestBody Map<String, Integer> request) {
+        List<Studente> studenti = new ArrayList<>();
+        String query = "SELECT * FROM studente WHERE id_classe = ?";
+
+        try (Connection conn = DatabaseConfig.getConnection(); PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setInt(1, request.get("idClasse"));
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                studenti.add(new Studente(
+                    rs.getInt("id"),
+                    rs.getString("nome"),
+                    rs.getString("cognome"),
+                    rs.getString("username"),
+                    rs.getString("email"),
+                    rs.getInt("id_classe"),
+                    rs.getString("psw")
+                ));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return studenti;
+    }
+
     @PostMapping("/recentiItems")
     public List<RecentiItem> getRecentiItems(@RequestBody Map<String, Integer> request) {
         List<RecentiItem> items = new ArrayList<>();
@@ -183,67 +210,74 @@ public class AppController {
         return items;
     }
 
-    @PostMapping("/studentiByClasse")
-    public List<Studente> getStudentiByClasse(@RequestBody Map<String, Integer> request) {
-        List<Studente> studenti = new ArrayList<>();
-        String query = "SELECT * FROM studente WHERE id_classe = ?";
-
+    @PostMapping("/getRecentiIdByInsegnante")
+    public int getRecentiIdByInsegnante(@RequestBody Map<String, Integer> request) {
+        String query = "SELECT id FROM recenti WHERE id_insegnante = ?";
         try (Connection conn = DatabaseConfig.getConnection(); PreparedStatement stmt = conn.prepareStatement(query)) {
-
-            stmt.setInt(1, request.get("idClasse"));
+            stmt.setInt(1, request.get("idInsegnante"));
             ResultSet rs = stmt.executeQuery();
-
-            while (rs.next()) {
-                studenti.add(new Studente(
-                    rs.getInt("id"),
-                    rs.getString("nome"),
-                    rs.getString("cognome"),
-                    rs.getString("username"),
-                    rs.getString("email"),
-                    rs.getInt("id_classe"),
-                    rs.getString("psw")
-                ));
+            if (rs.next()) {
+                return rs.getInt("id");
+            } else {
+                return 0;
             }
         } catch (SQLException e) {
             e.printStackTrace();
+            return 0;
         }
-        return studenti;
     }
 
-    @GetMapping("/materie")
-    public List<String> getMaterie() {
-        List<String> materie = new ArrayList<>();
-        String query = "SELECT nome FROM materia";
-
+    @PostMapping("/getPreferitiIdByInsegnante")
+    public int getPreferitiIdByInsegnante(@RequestBody Map<String, Integer> request) {
+        String query = "SELECT id FROM preferiti WHERE id_insegnante = ?";
         try (Connection conn = DatabaseConfig.getConnection(); PreparedStatement stmt = conn.prepareStatement(query)) {
-
+            stmt.setInt(1, request.get("idInsegnante"));
             ResultSet rs = stmt.executeQuery();
-
-            while (rs.next()) {
-                materie.add(rs.getString("nome"));
+            if (rs.next()) {
+                return rs.getInt("id");
+            } else {
+                return 0;
             }
         } catch (SQLException e) {
             e.printStackTrace();
+            return 0;
         }
-        return materie;
     }
 
-    @GetMapping("/macrocategorie")
-    public List<String> getMacrocategorie() {
-        List<String> macrocategorie = new ArrayList<>();
-        String query = "SELECT nome FROM macrocategoria";
-
+    @PostMapping("/setRecentiItem")
+    public boolean setRecentiItem(@RequestBody Map<String, Integer> request) {
+        String query = "INSERT INTO recenti_item (id_recenti, id_macrocategoria) VALUES (?, ?)";
         try (Connection conn = DatabaseConfig.getConnection(); PreparedStatement stmt = conn.prepareStatement(query)) {
-
-            ResultSet rs = stmt.executeQuery();
-
-            while (rs.next()) {
-                macrocategorie.add(rs.getString("nome"));
+            int idRecenti = getRecentiIdByInsegnante(request);
+            if (idRecenti == 0) {
+                return false;
             }
+            stmt.setInt(1, idRecenti);
+            stmt.setInt(2, request.get("idMacrocategoria"));
+            stmt.executeUpdate();
+            return true;
         } catch (SQLException e) {
             e.printStackTrace();
+            return false;
         }
-        return macrocategorie;
+    }
+
+    @PostMapping("/setPreferitoItem")
+    public boolean setPreferitoItem(@RequestBody Map<String, Integer> request) {
+        String query = "INSERT INTO preferiti_item (id_preferiti, id_macrocategoria) VALUES (?, ?)";
+        try (Connection conn = DatabaseConfig.getConnection(); PreparedStatement stmt = conn.prepareStatement(query)) {
+            int idPreferiti = getPreferitiIdByInsegnante(request);
+            if (idPreferiti == 0) {
+                return false;
+            }
+            stmt.setInt(1, idPreferiti);
+            stmt.setInt(2, request.get("idMacrocategoria"));
+            stmt.executeUpdate();
+            return true;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 
     @PostMapping("/creaRichiestaSimulazione")
@@ -296,6 +330,11 @@ public class AppController {
                 stmtStudenti.executeUpdate();
             }
             
+            //Aggiungiamo la macrocategoria ai recenti item con la funzione setRecentiItem
+            if(!setRecentiItem(request)) {
+                throw new SQLException("Aggiunta macrocategoria ai recenti item fallita.");
+            }
+
             // Se arriviamo qui, tutto è andato bene
             conn.commit();
             return true;
