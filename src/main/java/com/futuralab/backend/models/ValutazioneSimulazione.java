@@ -4,12 +4,12 @@ public class ValutazioneSimulazione {
     private int id;
     private int idStudente;
     private int idSimulazione;
-    private String voto;
+    private int voto;
 
     // Costruttore
     public ValutazioneSimulazione() {}
 
-    public ValutazioneSimulazione(int id, int idStudente, int idSimulazione, String voto) {
+    public ValutazioneSimulazione(int id, int idStudente, int idSimulazione, int voto) {
         this.id = id;
         this.idStudente = idStudente;
         this.idSimulazione = idSimulazione;
@@ -26,6 +26,6 @@ public class ValutazioneSimulazione {
     public int getIdSimulazione() { return idSimulazione; }
     public void setIdSimulazione(int idSimulazione) { this.idSimulazione = idSimulazione; }
 
-    public String getVoto() { return voto; }
-    public void setVoto(String voto) { this.voto = voto; }
+    public int getVoto() { return voto; }
+    public void setVoto(int voto) { this.voto = voto; }
 } 

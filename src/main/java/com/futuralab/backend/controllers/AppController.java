@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,7 +22,9 @@ import com.futuralab.backend.models.Macrocategoria;
 import com.futuralab.backend.models.Materia;
 import com.futuralab.backend.models.PreferitiItem;
 import com.futuralab.backend.models.RecentiItem;
+import com.futuralab.backend.models.SommaVoti;
 import com.futuralab.backend.models.Studente;
+import com.futuralab.backend.models.StudenteConStato;
 
 @RestController
 @RequestMapping("/api")
@@ -281,8 +282,8 @@ public class AppController {
     }
 
     @PostMapping("/creaRichiestaSimulazione")
-    public boolean creaRichiestaSimulazione(@RequestBody Map<String, Integer> request) {
-        String queryRichiesta = "INSERT INTO richiesta_simulazione (id_macrocategoria, id_insegnante, id_classe, stato, isVideo) VALUES (?, ?, ?, 'richiesta', ?)";
+    public int creaRichiestaSimulazione(@RequestBody Map<String, Integer> request) {
+        String queryRichiesta = "INSERT INTO richiesta_simulazione (id_macrocategoria, id_insegnante, id_classe, stato, isVideo) VALUES (?, ?, ?, 'avviato', ?)";
         String queryStudenti = "INSERT INTO simulazione_studenti (id_studente, id_richiesta_simulazione, stato) VALUES (?, ?, 'nonIniziato')";
         
         Connection conn = null;
@@ -337,7 +338,7 @@ public class AppController {
 
             // Se arriviamo qui, tutto è andato bene
             conn.commit();
-            return true;
+            return idRichiestaSimulazione;
             
         } catch (SQLException e) {
             // Gestione dell'errore con rollback
@@ -351,7 +352,7 @@ public class AppController {
             }
             System.err.println("Errore durante la creazione della simulazione: " + e.getMessage());
             e.printStackTrace();
-            return false;
+            return 0;
             
         } finally {
             // Chiusura di tutte le risorse in ordine inverso
@@ -369,4 +370,91 @@ public class AppController {
         }
     }
 
+    @PostMapping("/studentiConStatoSimulazione")
+    public List<StudenteConStato> getStudentiConStatoSimulazione(@RequestBody Map<String, Integer> request) {
+        List<StudenteConStato> studentiConStato = new ArrayList<>();
+        String query = "SELECT s.id, s.nome, s.cognome, s.username, s.email, s.id_classe, ss.stato " +
+                      "FROM studente s " +
+                      "JOIN simulazione_studenti ss ON s.id = ss.id_studente " +
+                      "WHERE s.id_classe = ? AND ss.id_richiesta_simulazione = ?";
+
+        try (Connection conn = DatabaseConfig.getConnection(); PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setInt(1, request.get("idClasse"));
+            stmt.setInt(2, request.get("idRichiestaSimulazione"));
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                studentiConStato.add(new StudenteConStato(
+                    rs.getInt("id"),
+                    rs.getString("nome"),
+                    rs.getString("cognome"),
+                    rs.getString("username"),
+                    rs.getString("email"),
+                    rs.getInt("id_classe"),
+                    rs.getString("stato")
+                ));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return studentiConStato;
+    }
+
+    @PostMapping("/terminaSimulazione")
+    public boolean terminaSimulazione(@RequestBody Map<String, Integer> request) {
+        String query = "UPDATE richiesta_simulazione SET stato = 'conclusa' WHERE id = ?";
+        try (Connection conn = DatabaseConfig.getConnection(); PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setInt(1, request.get("idRichiestaSimulazione"));
+            stmt.executeUpdate();
+            return true;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    @PostMapping("/getStatoSimulazione")
+    public String getStatoSimulazione(@RequestBody Map<String, Integer> request) {
+        String query = "SELECT stato FROM richiesta_simulazione WHERE id = ?";
+        try (Connection conn = DatabaseConfig.getConnection(); PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setInt(1, request.get("idRichiestaSimulazione"));
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getString("stato");
+            } else {
+                return "non trovato";
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return "errore";
+        }
+    }
+
+    @PostMapping("/getValutazioniStudente")
+    public SommaVoti getValutazioniStudente(@RequestBody Map<String, Integer> request) {
+        String query = "SELECT " +
+                      "SUM(CASE WHEN voto = 1 THEN 1 ELSE 0 END) as somma_voti_1, " +
+                      "SUM(CASE WHEN voto = 2 THEN 1 ELSE 0 END) as somma_voti_2, " +
+                      "SUM(CASE WHEN voto = 3 THEN 1 ELSE 0 END) as somma_voti_3 " +
+                      "FROM valutazione_simulazione WHERE id_simulazione = ?";
+        
+        try (Connection conn = DatabaseConfig.getConnection(); PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setInt(1, request.get("idRichiestaSimulazione"));
+            ResultSet rs = stmt.executeQuery();
+            
+            if (rs.next()) {
+                return new SommaVoti(
+                    rs.getInt("somma_voti_1"),
+                    rs.getInt("somma_voti_2"),
+                    rs.getInt("somma_voti_3")
+                );
+            } else {
+                return new SommaVoti(0, 0, 0);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return new SommaVoti(0, 0, 0);
+        }
+    }
 }
