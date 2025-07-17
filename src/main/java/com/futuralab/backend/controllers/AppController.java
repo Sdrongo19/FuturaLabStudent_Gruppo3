@@ -173,70 +173,37 @@ public class AppController {
         }
         return studenti;
     }
+ 
+    @PostMapping("/macrocategoriePreferiteByInsegnante")
+    public List<MacroCategoriaPreferita> getMacrocategoriePreferiteByInsegnante(@RequestBody Map<String, Integer> request) {
+        List<MacroCategoriaPreferita> macrocategorie = new ArrayList<>();
+        String query = "SELECT m.id, m.nome, m.id_materia, m.video " +
+                      "FROM macrocategoria m " +
+                      "JOIN preferiti_item pi ON pi.id_macrocategoria = m.id " +
+                      "JOIN preferiti p ON p.id = pi.id_preferiti " +
+                      "WHERE p.id_insegnante = ?";
 
-/*    @PostMapping("/recentiItems")
-    public List<RecentiItem> getRecentiItems(@RequestBody Map<String, Integer> request) {
-        List<RecentiItem> items = new ArrayList<>();
-        String query = "SELECT ri.* FROM recenti_item As ri JOIN recenti as rec ON ri.id_recenti = rec.id WHERE rec.id_insegnante = ?";
-
-        try (Connection conn = DatabaseConfig.getConnection(); PreparedStatement stmt = conn.prepareStatement(query)) {
-
-            stmt.setInt(1, request.get("idInsegnante"));
-            ResultSet rs = stmt.executeQuery();
-
-            while (rs.next()) {
-                items.add(new RecentiItem(
-                    rs.getInt("id"),
-                    rs.getInt("id_recenti"),
-                    rs.getInt("id_macrocategoria")
-                ));
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return items;
-    }
-*/
-    @PostMapping("/preferitiItems")
-    public List<PreferitiItem> getPreferitiItems(@RequestBody Map<String, Integer> request) {
-        List<PreferitiItem> items = new ArrayList<>();
-        String query = "SELECT pi.* FROM preferiti_item As pi JOIN preferiti as pref ON pi.id_preferiti = pref.id WHERE pref.id_insegnante = ?";
-
-        try (Connection conn = DatabaseConfig.getConnection(); PreparedStatement stmt = conn.prepareStatement(query)) {
+        try (Connection conn = DatabaseConfig.getConnection(); 
+             PreparedStatement stmt = conn.prepareStatement(query)) {
 
             stmt.setInt(1, request.get("idInsegnante"));
             ResultSet rs = stmt.executeQuery();
 
             while (rs.next()) {
-                items.add(new PreferitiItem(
+                macrocategorie.add(new MacroCategoriaPreferita(
                     rs.getInt("id"),
-                    rs.getInt("id_preferiti"),
-                    rs.getInt("id_macrocategoria")
+                    rs.getString("nome"),
+                    rs.getInt("id_materia"),
+                    rs.getString("video"),
+                    1  // È nei preferiti perché la query seleziona solo i preferiti
                 ));
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return items;
+        return macrocategorie;
     }
-
-    /*@PostMapping("/getRecentiIdByInsegnante")
-    public int getRecentiIdByInsegnante(@RequestBody Map<String, Integer> request) {
-        String query = "SELECT id FROM recenti WHERE id_insegnante = ?";
-        try (Connection conn = DatabaseConfig.getConnection(); PreparedStatement stmt = conn.prepareStatement(query)) {
-            stmt.setInt(1, request.get("idInsegnante"));
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) {
-                return rs.getInt("id");
-            } else {
-                return 0;
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return 0;
-        }
-    }
-*/
+    
     @PostMapping("/getPreferitiIdByInsegnante")
     public int getPreferitiIdByInsegnante(@RequestBody Map<String, Integer> request) {
         String query = "SELECT id FROM preferiti WHERE id_insegnante = ?";
@@ -254,24 +221,6 @@ public class AppController {
         }
     }
 
-/*    @PostMapping("/setRecentiItem")
-    public boolean setRecentiItem(@RequestBody Map<String, Integer> request) {
-        String query = "INSERT INTO recenti_item (id_recenti, id_macrocategoria) VALUES (?, ?)";
-        try (Connection conn = DatabaseConfig.getConnection(); PreparedStatement stmt = conn.prepareStatement(query)) {
-            int idRecenti = getRecentiIdByInsegnante(request);
-            if (idRecenti == 0) {
-                return false;
-            }
-            stmt.setInt(1, idRecenti);
-            stmt.setInt(2, request.get("idMacrocategoria"));
-            stmt.executeUpdate();
-            return true;
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
-*/
     @PostMapping("/setPreferitoItem")
     public boolean setPreferitoItem(@RequestBody Map<String, Integer> request) {
         String query = "INSERT INTO preferiti_item (id_preferiti, id_macrocategoria) VALUES (?, ?)";
