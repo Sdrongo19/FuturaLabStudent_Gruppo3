@@ -4,6 +4,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +24,8 @@ import com.futuralab.backend.models.Macrocategoria;
 import com.futuralab.backend.models.Materia;
 import com.futuralab.backend.models.PreferitiItem;
 import com.futuralab.backend.models.RecentiItem;
+import com.futuralab.backend.models.RichiestaSimulazione;
+import com.futuralab.backend.models.RichiestaSimulazioneRidotta;
 import com.futuralab.backend.models.SommaVoti;
 import com.futuralab.backend.models.Studente;
 import com.futuralab.backend.models.StudenteConStato;
@@ -283,7 +287,7 @@ public class AppController {
 
     @PostMapping("/creaRichiestaSimulazione")
     public int creaRichiestaSimulazione(@RequestBody Map<String, Integer> request) {
-        String queryRichiesta = "INSERT INTO richiesta_simulazione (id_macrocategoria, id_insegnante, id_classe, stato, isVideo) VALUES (?, ?, ?, 'avviato', ?)";
+        String queryRichiesta = "INSERT INTO richiesta_simulazione (id_macrocategoria, id_insegnante, id_classe, stato, isVideo, data) VALUES (?, ?, ?, 'avviato', ?, ?)";
         String queryStudenti = "INSERT INTO simulazione_studenti (id_studente, id_richiesta_simulazione, stato) VALUES (?, ?, 'nonIniziato')";
         
         Connection conn = null;
@@ -302,6 +306,7 @@ public class AppController {
             stmtRichiesta.setInt(2, request.get("idInsegnante"));
             stmtRichiesta.setInt(3, request.get("idClasse"));
             stmtRichiesta.setInt(4, request.get("isVideo"));
+            stmtRichiesta.setObject(5, LocalDateTime.now());
             
             int affectedRows = stmtRichiesta.executeUpdate();
             if (affectedRows == 0) {
@@ -457,4 +462,43 @@ public class AppController {
             return new SommaVoti(0, 0, 0);
         }
     }
+
+    @PostMapping("/getRichiesteSimulazioneConcluse")
+    public List<RichiestaSimulazioneRidotta> getRichiesteSimulazioneConcluse(@RequestBody Map<String, Integer> request) {
+        List<RichiestaSimulazioneRidotta> richiesteSimulazione = new ArrayList<>();
+        String query = "SELECT r.id, m.nome as nome_macrocategoria, r.isVideo, r.data " +
+                      "FROM richiesta_simulazione r " +
+                      "JOIN macrocategoria m ON r.id_macrocategoria = m.id " +
+                      "WHERE r.stato = 'conclusa' AND r.id_insegnante = ?";
+                      
+        try (Connection conn = DatabaseConfig.getConnection(); 
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            
+            stmt.setInt(1, request.get("idInsegnante"));
+            ResultSet rs = stmt.executeQuery();
+            
+            while (rs.next()) {
+                // Formatta la data nel formato richiesto
+                LocalDateTime data = rs.getObject("data", LocalDateTime.class);
+                String dataFormattata = data.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
+                
+                // Determina il tipo di simulazione
+                String tipoSimulazione = rs.getInt("isVideo") == 1 ? "Video" : "Simulazione";
+                
+                richiesteSimulazione.add(new RichiestaSimulazioneRidotta(
+                    rs.getInt("id"),
+                    rs.getString("nome_macrocategoria"),
+                    tipoSimulazione,
+                    dataFormattata
+                ));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return new ArrayList<>();
+        }
+        return richiesteSimulazione;
+    }
+
+
+
 }

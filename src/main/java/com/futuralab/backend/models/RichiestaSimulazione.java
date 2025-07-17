@@ -1,5 +1,7 @@
 package com.futuralab.backend.models;
 
+import java.time.LocalDateTime;
+
 public class RichiestaSimulazione {
     private int id;
     private int idMacrocategoria;
@@ -7,17 +9,19 @@ public class RichiestaSimulazione {
     private String stato;
     private int idClasse;
     private int isVideo;
+    private LocalDateTime data;
 
     // Costruttore
     public RichiestaSimulazione() {}
 
-    public RichiestaSimulazione(int id, int idMacrocategoria, int idInsegnante, String stato, int idClasse, int isVideo) {
+    public RichiestaSimulazione(int id, int idMacrocategoria, int idInsegnante, String stato, int idClasse, int isVideo, LocalDateTime data) {
         this.id = id;
         this.idMacrocategoria = idMacrocategoria;
         this.idInsegnante = idInsegnante;
         this.stato = stato;
         this.idClasse = idClasse;
         this.isVideo = isVideo;
+        this.data = data;
     }
 
     // Getters e Setters
@@ -38,4 +42,7 @@ public class RichiestaSimulazione {
 
     public int getIsVideo() { return isVideo; }
     public void setIsVideo(int isVideo) { this.isVideo = isVideo; }
+
+    public LocalDateTime getData() { return data; }
+    public void setData(LocalDateTime data) { this.data = data; }
 } 
