@@ -33,6 +33,9 @@ if errorlevel 1 (
 
 echo.
 echo Controllo Maven...
+:: Aggiungi Maven al PATH per la sessione corrente se esiste
+if exist "%MAVEN_HOME%\bin\mvn.cmd" set PATH=%MAVEN_HOME%\bin;%PATH%
+
 mvn -version >nul 2>&1
 if errorlevel 1 (
     echo Maven non trovato. Installazione in corso...
@@ -44,7 +47,10 @@ if errorlevel 1 (
 
 echo.
 echo Controllo Ngrok...
-ngrok version >nul 2>&1
+:: Aggiungi Ngrok al PATH per la sessione corrente se esiste
+if exist "%NGROK_DIR%\ngrok.exe" set PATH=%NGROK_DIR%;%PATH%
+
+"%NGROK_DIR%\ngrok.exe" version >nul 2>&1
 if errorlevel 1 (
     echo Ngrok non trovato. Installazione in corso...
     call :install_ngrok
