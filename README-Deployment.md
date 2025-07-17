@@ -4,57 +4,61 @@ Questo progetto include un sistema di deployment automatizzato che semplifica l'
 
 ## 📁 File del Sistema di Deployment
 
+- `quick-start.bat` - Avvio rapido con rilevamento automatico
+- `run-in-cmd.bat` - **RACCOMANDATO** - Apre un terminale permanente
 - `setup-first-time.bat` - Configurazione iniziale dell'ambiente
 - `start-backend.bat` - Avvio del backend con Ngrok
 - `stop-backend.bat` - Arresto pulito del backend e Ngrok
 - `install-dependencies.bat` - Installazione automatica delle dipendenze
-- `quick-start.bat` - Avvio rapido con rilevamento automatico
 
 ## 🔧 Configurazione Iniziale (Prima Volta)
 
-### 1. Eseguire la Configurazione Automatica
+### ⭐ Metodo Raccomandato (Evita Chiusure Improvvise)
 
 ```bash
 # Fai doppio click su:
-setup-first-time.bat
+run-in-cmd.bat
 ```
 
 Questo script:
-- Verifica e installa Java (se necessario, ti chiederà di installarlo manualmente)
-- Scarica e installa Maven automaticamente
-- Scarica e installa Ngrok automaticamente
-- **Configura automaticamente il token di autenticazione Ngrok** ✨
-- Testa la configurazione
+- Apre un nuovo Prompt dei Comandi che non si chiude
+- Esegue automaticamente `quick-start.bat` nel nuovo terminale
+- Ti permette di vedere tutto l'output senza interruzioni
 
-### 2. ✅ Token Ngrok Preconfigurato
-
-🎉 **Il token Ngrok è già configurato automaticamente!**
-
-Non è più necessario inserire manualmente il token. Il sistema utilizza il token preconfigurato:
-- `2zwptUywEAzU4N2DNOG0napPHjt_4vzBvWiK8q4hYYiTJ3mu9`
-
-## 🚀 Avvio del Backend
-
-Dopo la configurazione iniziale, per avviare il backend:
-
-```bash
-# Fai doppio click su:
-start-backend.bat
-```
-
-**Oppure per un avvio ancora più semplice:**
+### Metodo Alternativo
 
 ```bash
 # Fai doppio click su:
 quick-start.bat
 ```
 
-Questi script:
-1. Verificano che tutte le dipendenze siano installate
-2. Compilano il progetto con `mvn clean install`
-3. Avviano Ngrok sulla porta 8080 con l'URL statico configurato
-4. Avviano il backend Spring Boot
-5. Mostrano le informazioni di connessione
+⚠️ **Nota**: Se il terminale si chiude improvvisamente:
+1. Apri manualmente il **Prompt dei Comandi** (cmd)
+2. Naviga nella cartella del progetto: `cd "percorso\del\progetto"`
+3. Esegui: `quick-start.bat`
+
+## 🚀 Processo di Avvio
+
+Il sistema esegue automaticamente questi passaggi:
+
+### 1. **Rilevamento Dipendenze**
+- Verifica e installa Java (se necessario, ti chiederà di installarlo manualmente)
+- Scarica e installa Maven automaticamente
+- Scarica e installa Ngrok automaticamente
+- **Configura automaticamente il token di autenticazione Ngrok** ✨
+
+### 2. **Configurazione Automatica**
+🎉 **Il token Ngrok è già configurato automaticamente!**
+
+Non è più necessario inserire manualmente il token. Il sistema utilizza il token preconfigurato:
+- `2zwptUywEAzU4N2DNOG0napPHjt_4vzBvWiK8q4hYYiTJ3mu9`
+
+### 3. **Avvio del Backend**
+Il sistema:
+1. Compila il progetto con `mvn clean install`
+2. Avvia Ngrok sulla porta 8080 con l'URL statico configurato
+3. Avvia il backend Spring Boot
+4. Mostra le informazioni di connessione
 
 ### 📱 URL di Accesso
 
@@ -117,6 +121,12 @@ Base URL: https://supposedly-intent-gannet.ngrok-free.app
 
 ## 🐛 Risoluzione Problemi
 
+### Il terminale si chiude improvvisamente
+```
+Il terminale scompare dopo aver premuto un tasto
+```
+**Soluzione**: Usa `run-in-cmd.bat` invece di `quick-start.bat` direttamente
+
 ### Java non trovato
 ```
 ERRORE: Java non è installato o non è nel PATH!
@@ -127,7 +137,7 @@ ERRORE: Java non è installato o non è nel PATH!
 ```
 mvn: comando non riconosciuto
 ```
-**Soluzione**: Riavvia il terminal o esegui nuovamente `setup-first-time.bat`
+**Soluzione**: Il sistema dovrebbe installarlo automaticamente. Se persiste, riavvia il computer dopo l'installazione
 
 ### Ngrok non si autentica
 ```
@@ -151,10 +161,11 @@ SQLException: Access denied
 
 Se incontri problemi:
 
-1. Controlla che MySQL sia in esecuzione
-2. Esegui `setup-first-time.bat` per riconfigurare l'ambiente
-3. Controlla i log nella finestra del terminal per errori specifici
-4. Verifica che Java sia installato correttamente
+1. **Usa sempre** `run-in-cmd.bat` per vedere l'output completo
+2. Controlla che MySQL sia in esecuzione
+3. Esegui `setup-first-time.bat` per riconfigurare l'ambiente
+4. Controlla i log nella finestra del terminal per errori specifici
+5. Verifica che Java sia installato correttamente
 
 ## 🔄 Aggiornamenti
 
@@ -165,14 +176,19 @@ Per aggiornare le dipendenze:
 
 ## 🎯 Uso Semplificato
 
+### ⭐ Per Tutti gli Utenti (RACCOMANDATO)
+```bash
+run-in-cmd.bat  # Apre terminale permanente ed esegue tutto automaticamente
+```
+
 ### Per Nuovi Utenti (Prima Volta)
 ```bash
-quick-start.bat  # Configura tutto automaticamente e avvia
+quick-start.bat  # Configura tutto automaticamente e avvia (ma può chiudersi)
 ```
 
 ### Per Utenti Esperti
 ```bash
-start-backend.bat  # Avvia direttamente il backend
+start-backend.bat  # Avvia direttamente il backend (da cmd aperto manualmente)
 ```
 
 ### Per Debug
@@ -186,4 +202,5 @@ setup-first-time.bat  # Riconfigura l'ambiente
 - 🌐 L'URL Ngrok statico (`supposedly-intent-gannet.ngrok-free.app`) è configurato per questo progetto
 - 🔒 Il token Ngrok è preconfigurato e viene applicato automaticamente
 - 💾 Assicurati che MySQL sia sempre in esecuzione prima di avviare il backend
-- ✨ Non è più necessario inserire manualmente alcun token o configurazione! 
+- ✨ Non è più necessario inserire manualmente alcun token o configurazione!
+- 🖥️ **Usa sempre `run-in-cmd.bat` per evitare chiusure improvvise del terminale** 
