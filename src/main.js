@@ -902,11 +902,97 @@ function setupUI() {
 }
 
 /**
+ * Salva i dati dell'utente in sessione
+ * @param {Object} user - Dati dell'utente da salvare
+ */
+function saveUserToSession(user) {
+    try {
+        const sessionData = {
+            id: user.id,
+            nome: user.nome,
+            cognome: user.cognome,
+            username: user.username,
+            email: user.email,
+            idClasse: user.idClasse,
+            role: user.role,
+            name: user.name,
+            loginTime: new Date().toISOString()
+        };
+        
+        localStorage.setItem('futuralab_user', JSON.stringify(sessionData));
+        window.debugLogger.log('Dati utente salvati in localStorage', sessionData);
+    } catch (error) {
+        console.error('Errore nel salvare i dati utente in sessione:', error);
+        window.debugLogger.log('Errore nel salvare i dati utente in sessione', error.message);
+    }
+}
+
+/**
+ * Recupera i dati dell'utente dalla sessione
+ * @returns {Object|null} - Dati dell'utente o null se non presente
+ */
+function getUserFromSession() {
+    try {
+        const sessionData = localStorage.getItem('futuralab_user');
+        if (sessionData) {
+            const user = JSON.parse(sessionData);
+            window.debugLogger.log('Dati utente recuperati da localStorage', user);
+            return user;
+        }
+        return null;
+    } catch (error) {
+        console.error('Errore nel recuperare i dati utente dalla sessione:', error);
+        window.debugLogger.log('Errore nel recuperare i dati utente dalla sessione', error.message);
+        return null;
+    }
+}
+
+/**
+ * Rimuove i dati dell'utente dalla sessione (logout)
+ */
+function clearUserSession() {
+    try {
+        localStorage.removeItem('futuralab_user');
+        window.debugLogger.log('Dati utente cancellati da localStorage');
+    } catch (error) {
+        console.error('Errore nel cancellare la sessione utente:', error);
+        window.debugLogger.log('Errore nel cancellare la sessione utente', error.message);
+    }
+}
+
+/**
+ * Verifica se l'utente è loggato controllando la sessione
+ * @returns {boolean} - True se l'utente è loggato
+ */
+function isUserSessionActive() {
+    const user = getUserFromSession();
+    if (!user) return false;
+    
+    // Verifica se la sessione è scaduta (24 ore)
+    const loginTime = new Date(user.loginTime);
+    const now = new Date();
+    const sessionDuration = now - loginTime;
+    const maxSessionDuration = 24 * 60 * 60 * 1000; // 24 ore in millisecondi
+    
+    if (sessionDuration > maxSessionDuration) {
+        window.debugLogger.log('Sessione scaduta, rimozione automatica');
+        clearUserSession();
+        return false;
+    }
+    
+    return true;
+}
+
+/**
  * Gestisce il login riuscito
  * @param {Object} user - Dati dell'utente
  */
 function handleLoginSuccess(user) {
     console.log('Utente loggato:', user);
+    
+    // Salva l'utente in sessione
+    saveUserToSession(user);
+    window.debugLogger.log('Utente salvato in localStorage', user);
     
     // Rimuovi la modale di login statica
     removeStaticLoginModal();
@@ -939,6 +1025,9 @@ function handleLoginSuccess(user) {
  */
 function handleLogout() {
     console.log('Logout effettuato');
+    
+    // Cancella la sessione utente
+    clearUserSession();
     
     // Aggiorna l'interfaccia utente
     const userInfo = document.getElementById('user-info');
@@ -1205,8 +1294,12 @@ function removeStaticLoginModal() {
     }
 }
 
-// Espone la funzione globalmente per gli onclick
+// Espone le funzioni globalmente
 window.fillTestAccount = fillTestAccount;
+window.getUserFromSession = getUserFromSession;
+window.saveUserToSession = saveUserToSession;
+window.clearUserSession = clearUserSession;
+window.isUserSessionActive = isUserSessionActive;
 
 /**
  * Funzione principale di inizializzazione
@@ -1236,8 +1329,16 @@ function init() {
     // Configura il callback per il login riuscito
     window.onUserLogin = handleLoginSuccess;
     
-    // Crea la modale di login statica
-    createStaticLoginModal();
+    // Controlla se c'è già un utente loggato in sessione
+    const savedUser = getUserFromSession();
+    if (savedUser && isUserSessionActive()) {
+        console.log('Utente trovato in sessione, login automatico');
+        window.debugLogger.log('Login automatico da localStorage', savedUser);
+        handleLoginSuccess(savedUser);
+    } else {
+        // Crea la modale di login statica solo se l'utente non è già loggato
+        createStaticLoginModal();
+    }
     
     // Posiziona la camera all'altezza corretta
     camera.position.set(10, PLAYER_HEIGHT, 10);
@@ -1247,7 +1348,8 @@ function init() {
     
     console.log('Simulazione educativa VR inizializzata con successo!');
     console.log('Sistema di login integrato con endpoint /vrLogin del backend');
-    console.log('Assicurati che il backend sia avviato su http://localhost:8080');
+    console.log('Gestione sessione utente attiva con localStorage (condivisa tra schede)');
+    console.log('Assicurati che il backend sia avviato su http://localhost:80');
 }
 
 // Avvia l'applicazione quando il DOM è caricato
