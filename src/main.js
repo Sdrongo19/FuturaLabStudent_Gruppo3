@@ -9,7 +9,7 @@ let classroomModel, provettaModel;
 let loadedProvette = []; // Array per tenere traccia delle provette caricate
 let raycaster, mouse;
 let isLoadingComplete = false;
-let login3D; // Sistema di login 3D
+let isUserLoggedIn = false; // Controlla se l'utente ha effettuato il login
 
 // Colori per l'interazione con la provetta
 const PROVETTA_COLORS = [
@@ -242,7 +242,8 @@ function addCollidableObject(object) {
  * Aggiorna il movimento del personaggio
  */
 function updateMovement() {
-    if (!fpControls.isLocked) return;
+    // Blocca il movimento se l'utente non ha effettuato il login
+    if (!isUserLoggedIn || !fpControls.isLocked) return;
 
     const time = performance.now();
     const delta = (time - prevTime) / 1000;
@@ -592,34 +593,34 @@ function onMouseClick(event) {
         window.debugLogger.log('Oggetto cliccato', {nome: clickedObject.name, userData: clickedObject.userData});
         
         // Prima controlla se è un elemento del login 3D
-        if (login3D && login3D.isVisible()) {
-            window.debugLogger.log('Login è visibile, tentando gestione click');
+        // if (login3D && login3D.isVisible()) { // login3D è rimosso
+        //     window.debugLogger.log('Login è visibile, tentando gestione click');
             
-            // Se l'oggetto cliccato non ha userData valido, cerca nell'area circostante
-            let targetObject = clickedObject;
-            if (!clickedObject.userData || (!clickedObject.userData.type)) {
-                window.debugLogger.log('Oggetto senza userData, cercando nell\'area circostante');
+        //     // Se l'oggetto cliccato non ha userData valido, cerca nell'area circostante
+        //     let targetObject = clickedObject;
+        //     if (!clickedObject.userData || (!clickedObject.userData.type)) {
+        //         window.debugLogger.log('Oggetto senza userData, cercando nell\'area circostante');
                 
-                // Cerca tra tutti gli oggetti intersecati per trovare uno con userData valido
-                for (let i = 0; i < Math.min(intersects.length, 5); i++) {
-                    const obj = intersects[i].object;
-                    if (obj.userData && (obj.userData.type === 'key' || obj.userData.type === 'button' || obj.userData.type === 'inputField')) {
-                        targetObject = obj;
-                        window.debugLogger.log('Trovato oggetto valido nell\'area', {userData: obj.userData});
-                        break;
-                    }
-                }
-            }
+        //         // Cerca tra tutti gli oggetti intersecati per trovare uno con userData valido
+        //         for (let i = 0; i < Math.min(intersects.length, 5); i++) {
+        //             const obj = intersects[i].object;
+        //             if (obj.userData && (obj.userData.type === 'key' || obj.userData.type === 'button' || obj.userData.type === 'inputField')) {
+        //                 targetObject = obj;
+        //                 window.debugLogger.log('Trovato oggetto valido nell\'area', {userData: obj.userData});
+        //                 break;
+        //             }
+        //         }
+        //     }
             
-            if (login3D.handleClick(targetObject)) {
-                window.debugLogger.log('Click gestito dal sistema di login');
-                return; // Il login ha gestito il click
-            } else {
-                window.debugLogger.log('Login non ha gestito il click');
-            }
-        } else {
-            window.debugLogger.log('Login non visibile o non inizializzato');
-        }
+        //     if (login3D.handleClick(targetObject)) {
+        //         window.debugLogger.log('Click gestito dal sistema di login');
+        //         return; // Il login ha gestito il click
+        //     } else {
+        //         window.debugLogger.log('Login non ha gestito il click');
+        //     }
+        // } else {
+        //     window.debugLogger.log('Login non visibile o non inizializzato');
+        // }
         
         // Poi controlla se è una provetta
         let provetta = clickedObject;
@@ -628,6 +629,11 @@ function onMouseClick(event) {
         }
         
         if (provetta && provetta.userData && provetta.userData.type === 'provetta') {
+            // Blocca l'interazione con le provette se l'utente non è loggato
+            if (!isUserLoggedIn) {
+                alert('Devi effettuare il login prima di poter interagire con le provette!');
+                return;
+            }
             window.debugLogger.log('Click su provetta');
             interactWithProvetta(provetta);
         } else {
@@ -667,13 +673,13 @@ function onMouseMove(event) {
         const hoveredObject = intersects[0].object;
         
         // Controlla se stiamo hovering sul login 3D
-        if (login3D && login3D.isVisible() && hoveredObject.userData) {
-            if (hoveredObject.userData.type === 'key' || 
-                hoveredObject.userData.type === 'inputField' || 
-                hoveredObject.userData.type === 'button') {
-                isHoveringLogin = true;
-            }
-        }
+        // if (login3D && login3D.isVisible() && hoveredObject.userData) { // login3D è rimosso
+        //     if (hoveredObject.userData.type === 'key' || 
+        //         hoveredObject.userData.type === 'inputField' || 
+        //         hoveredObject.userData.type === 'button') {
+        //         isHoveringLogin = true;
+        //     }
+        // }
         
         // Risali nella gerarchia per trovare l'oggetto provetta
         let provetta = hoveredObject;
@@ -690,11 +696,11 @@ function onMouseMove(event) {
     if (fpControls && fpControls.isLocked) {
         const crosshair = document.querySelector('.crosshair');
         if (crosshair) {
-            if (isHoveringLogin) {
-                crosshair.classList.add('login-target');
-            } else {
-                crosshair.classList.remove('login-target');
-            }
+            // if (isHoveringLogin) { // login3D è rimosso
+            //     crosshair.classList.add('login-target');
+            // } else {
+            //     crosshair.classList.remove('login-target');
+            // }
         }
     } else {
         // Cambia il cursore in modalità normale
@@ -729,10 +735,20 @@ function initFPControls() {
 
     // Event listeners per il pointer lock
     startButton.addEventListener('click', () => {
+        // Blocca l'accesso ai controlli FPS se l'utente non è loggato
+        if (!isUserLoggedIn) {
+            alert('Devi effettuare il login prima di poter entrare in modalità FPS!');
+            return;
+        }
         fpControls.lock();
     });
 
     document.getElementById('resume-button').addEventListener('click', () => {
+        // Blocca l'accesso ai controlli FPS se l'utente non è loggato
+        if (!isUserLoggedIn) {
+            alert('Devi effettuare il login prima di poter riprendere!');
+            return;
+        }
         fpControls.lock();
     });
 
@@ -866,14 +882,14 @@ function setupUI() {
     }
     
     // Pulsante per mostrare il login
-    const loginBtn = document.getElementById('login-button');
-    if (loginBtn) {
-        loginBtn.addEventListener('click', () => {
-            if (login3D) {
-                login3D.showLogin();
-            }
-        });
-    }
+    // const loginBtn = document.getElementById('login-button'); // login3D è rimosso
+    // if (loginBtn) {
+    //     loginBtn.addEventListener('click', () => {
+    //         if (login3D) {
+    //             login3D.showLogin();
+    //         }
+    //     });
+    // }
     
     // Pulsante per logout
     const logoutBtn = document.getElementById('logout-button');
@@ -892,21 +908,30 @@ function setupUI() {
 function handleLoginSuccess(user) {
     console.log('Utente loggato:', user);
     
+    // Rimuovi la modale di login statica
+    removeStaticLoginModal();
+    
     // Aggiorna l'interfaccia utente
     const userInfo = document.getElementById('user-info');
     const userName = document.getElementById('user-name');
     const userRole = document.getElementById('user-role');
-    const loginButton = document.getElementById('login-button');
+    const logoutButton = document.getElementById('logout-button');
     
     if (userInfo && userName && userRole) {
         userName.textContent = user.name;
         userRole.textContent = user.role;
         userInfo.style.display = 'block';
-        if (loginButton) loginButton.style.display = 'none';
+        if (logoutButton) logoutButton.style.display = 'block';
     }
     
     // Abilita funzionalità in base al ruolo
     enableUserFeatures(user);
+    isUserLoggedIn = true; // Imposta l'utente come loggato
+    
+    // Mostra un messaggio di benvenuto
+    setTimeout(() => {
+        alert(`Benvenuto nell'ambiente VR, ${user.name}! Ora puoi interagire liberamente.`);
+    }, 1000);
 }
 
 /**
@@ -917,18 +942,20 @@ function handleLogout() {
     
     // Aggiorna l'interfaccia utente
     const userInfo = document.getElementById('user-info');
-    const loginButton = document.getElementById('login-button');
+    const logoutButton = document.getElementById('logout-button');
     
     if (userInfo) userInfo.style.display = 'none';
-    if (loginButton) loginButton.style.display = 'block';
+    if (logoutButton) logoutButton.style.display = 'none';
     
     // Reset del sistema di login
-    if (login3D) {
-        login3D.resetForm();
-    }
+    // if (login3D) { // login3D è rimosso
+    //     login3D.resetForm();
+    // }
     
     // Disabilita funzionalità specifiche
     disableUserFeatures();
+    isUserLoggedIn = false; // Imposta l'utente come non loggato
+    createStaticLoginModal(); // Ristabilisce la modale di login
 }
 
 /**
@@ -964,6 +991,170 @@ function disableUserFeatures() {
 }
 
 /**
+ * Crea la modale di login statica
+ */
+function createStaticLoginModal() {
+    const existingModal = document.getElementById('login-modal');
+    if (!existingModal) {
+        const modal = document.createElement('div');
+        modal.id = 'login-modal';
+        modal.className = 'login-modal';
+        
+        modal.innerHTML = `
+            <div class="login-modal-content">
+                <div class="login-header">
+                    <h2>🚀 FuturaLab VR</h2>
+                    <p>Accedi per entrare nell'ambiente virtuale</p>
+                </div>
+                
+                <form id="login-form" class="login-form">
+                    <div class="input-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" name="email" required placeholder="Inserisci la tua email">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" required placeholder="Inserisci la password">
+                    </div>
+                    
+                    <button type="submit" id="login-btn" class="login-button">
+                        <span class="login-text">Accedi</span>
+                        <span class="login-loading" style="display: none;">Caricamento...</span>
+                    </button>
+                    
+                    <div id="login-message" class="login-message"></div>
+                </form>
+                
+                <div class="login-footer">
+                    <p><strong>Account di test:</strong></p>
+                    <div class="test-accounts">
+                        <div onclick="fillTestAccount('admin')">👨‍💼 Admin: admin@futuralab.com</div>
+                        <div onclick="fillTestAccount('teacher')">👩‍🏫 Docente: docente@futuralab.com</div>
+                        <div onclick="fillTestAccount('student')">👨‍🎓 Studente: studente@futuralab.com</div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Aggiungi event listeners
+        setupLoginModalEvents();
+    }
+}
+
+/**
+ * Configura gli event listeners per la modale di login
+ */
+function setupLoginModalEvents() {
+    const form = document.getElementById('login-form');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const loginBtn = document.getElementById('login-btn');
+    const messageDiv = document.getElementById('login-message');
+    
+    // Gestione submit del form
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const email = emailInput.value.trim();
+        const password = passwordInput.value.trim();
+        
+        if (!email || !password) {
+            showLoginMessage('Inserisci email e password', 'error');
+            return;
+        }
+        
+        // Mostra loading
+        loginBtn.disabled = true;
+        document.querySelector('.login-text').style.display = 'none';
+        document.querySelector('.login-loading').style.display = 'inline';
+        
+        try {
+            // Simula autenticazione (usa il database manager esistente)
+            const user = await window.dbManager.authenticateUser(email, password);
+            
+            if (user) {
+                showLoginMessage(`Benvenuto, ${user.name}!`, 'success');
+                setTimeout(() => {
+                    removeStaticLoginModal();
+                    handleLoginSuccess(user);
+                }, 1500);
+            } else {
+                showLoginMessage('Credenziali non valide', 'error');
+            }
+        } catch (error) {
+            showLoginMessage('Errore di connessione', 'error');
+        } finally {
+            // Nasconde loading
+            loginBtn.disabled = false;
+            document.querySelector('.login-text').style.display = 'inline';
+            document.querySelector('.login-loading').style.display = 'none';
+        }
+    });
+    
+    // Focus automatico sul primo campo
+    emailInput.focus();
+}
+
+/**
+ * Mostra un messaggio nella modale di login
+ */
+function showLoginMessage(message, type) {
+    const messageDiv = document.getElementById('login-message');
+    if (messageDiv) {
+        messageDiv.textContent = message;
+        messageDiv.className = `login-message ${type}`;
+        messageDiv.style.display = 'block';
+    }
+}
+
+/**
+ * Riempie automaticamente i campi con account di test
+ */
+function fillTestAccount(type) {
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    
+    switch (type) {
+        case 'admin':
+            emailInput.value = 'admin@futuralab.com';
+            passwordInput.value = 'admin123';
+            break;
+        case 'teacher':
+            emailInput.value = 'docente@futuralab.com';
+            passwordInput.value = 'docente123';
+            break;
+        case 'student':
+            emailInput.value = 'studente@futuralab.com';
+            passwordInput.value = 'studente123';
+            break;
+    }
+    
+    // Focus sul pulsante di login
+    document.getElementById('login-btn').focus();
+}
+
+/**
+ * Rimuove la modale di login statica
+ */
+function removeStaticLoginModal() {
+    const modal = document.getElementById('login-modal');
+    if (modal) {
+        modal.style.animation = 'fadeOut 0.5s ease-out';
+        setTimeout(() => {
+            if (modal.parentNode) {
+                document.body.removeChild(modal);
+            }
+        }, 500);
+    }
+}
+
+// Espone la funzione globalmente per gli onclick
+window.fillTestAccount = fillTestAccount;
+
+/**
  * Funzione principale di inizializzazione
  */
 function init() {
@@ -988,11 +1179,11 @@ function init() {
     // Inizializza i controlli FPS
     initFPControls();
     
-    // Inizializza il sistema di login 3D
-    login3D = new Login3D(scene, camera, renderer);
-    
     // Configura il callback per il login riuscito
     window.onUserLogin = handleLoginSuccess;
+    
+    // Crea la modale di login statica
+    createStaticLoginModal();
     
     // Posiziona la camera all'altezza corretta
     camera.position.set(10, PLAYER_HEIGHT, 10);
