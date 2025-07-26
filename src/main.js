@@ -1009,8 +1009,8 @@ function createStaticLoginModal() {
                 
                 <form id="login-form" class="login-form">
                     <div class="input-group">
-                        <label for="email">Email</label>
-                        <input type="email" id="email" name="email" required placeholder="Inserisci la tua email">
+                        <label for="email">Username</label>
+                        <input type="text" id="email" name="email" required placeholder="Inserisci il tuo username">
                     </div>
                     
                     <div class="input-group">
@@ -1029,10 +1029,9 @@ function createStaticLoginModal() {
                 <div class="login-footer">
                     <p><strong>Account di test:</strong></p>
                     <div class="test-accounts">
-                        <div onclick="fillTestAccount('admin')">👨‍💼 Admin: admin@futuralab.com</div>
-                        <div onclick="fillTestAccount('teacher')">👩‍🏫 Docente: docente@futuralab.com</div>
-                        <div onclick="fillTestAccount('student')">👨‍🎓 Studente: studente@futuralab.com</div>
+                        <div onclick="fillTestAccount('student')">👨‍🎓 Studente: testuser</div>
                     </div>
+                    <p><small>Nota: Usa username e password del database studenti</small></p>
                 </div>
             </div>
         `;
@@ -1041,6 +1040,63 @@ function createStaticLoginModal() {
         
         // Aggiungi event listeners
         setupLoginModalEvents();
+    }
+}
+
+/**
+ * Autentica un utente tramite l'endpoint /vrLogin del backend
+ * @param {string} username - Username o email dell'utente  
+ * @param {string} password - Password dell'utente
+ * @returns {Promise<Object|null>} - Dati dell'utente se l'autenticazione è riuscita, null altrimenti
+ */
+async function authenticateVRUser(username, password) {
+    const API_BASE_URL = 'http://localhost:80/api';
+    
+    try {
+        window.debugLogger.log('Tentativo di login VR', { username, password: '***' });
+        
+        const response = await fetch(`${API_BASE_URL}/vrLogin`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                username: username,
+                password: password
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const loginResponse = await response.json();
+        window.debugLogger.log('Risposta login VR', loginResponse);
+
+        if (loginResponse.success && loginResponse.studente) {
+            // Converti i dati dello studente nel formato utilizzato dall'app
+            const userData = {
+                id: loginResponse.studente.id,
+                nome: loginResponse.studente.nome,
+                cognome: loginResponse.studente.cognome,
+                username: loginResponse.studente.username,
+                email: loginResponse.studente.email,
+                idClasse: loginResponse.studente.idClasse,
+                role: 'student', // Gli studenti hanno sempre ruolo 'student'
+                name: `${loginResponse.studente.nome} ${loginResponse.studente.cognome}` // Per compatibilità
+            };
+            
+            window.debugLogger.log('Login VR riuscito', userData);
+            return userData;
+        } else {
+            window.debugLogger.log('Login VR fallito', loginResponse.message);
+            return null;
+        }
+    } catch (error) {
+        window.debugLogger.log('Errore durante il login VR', error.message);
+        console.error('Errore durante l\'autenticazione VR:', error);
+        throw error;
     }
 }
 
@@ -1058,11 +1114,11 @@ function setupLoginModalEvents() {
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         
-        const email = emailInput.value.trim();
+        const username = emailInput.value.trim();
         const password = passwordInput.value.trim();
         
-        if (!email || !password) {
-            showLoginMessage('Inserisci email e password', 'error');
+        if (!username || !password) {
+            showLoginMessage('Inserisci username e password', 'error');
             return;
         }
         
@@ -1072,11 +1128,11 @@ function setupLoginModalEvents() {
         document.querySelector('.login-loading').style.display = 'inline';
         
         try {
-            // Simula autenticazione (usa il database manager esistente)
-            const user = await window.dbManager.authenticateUser(email, password);
+            // Autenticazione tramite endpoint /vrLogin del backend
+            const user = await authenticateVRUser(username, password);
             
             if (user) {
-                showLoginMessage(`Benvenuto, ${user.name}!`, 'success');
+                showLoginMessage(`Benvenuto, ${user.nome} ${user.cognome}!`, 'success');
                 setTimeout(() => {
                     removeStaticLoginModal();
                     handleLoginSuccess(user);
@@ -1085,7 +1141,8 @@ function setupLoginModalEvents() {
                 showLoginMessage('Credenziali non valide', 'error');
             }
         } catch (error) {
-            showLoginMessage('Errore di connessione', 'error');
+            console.error('Errore durante l\'autenticazione:', error);
+            showLoginMessage('Errore di connessione al server', 'error');
         } finally {
             // Nasconde loading
             loginBtn.disabled = false;
@@ -1114,21 +1171,18 @@ function showLoginMessage(message, type) {
  * Riempie automaticamente i campi con account di test
  */
 function fillTestAccount(type) {
-    const emailInput = document.getElementById('email');
+    const usernameInput = document.getElementById('email'); // Il campo ha ancora id 'email' ma ora è username
     const passwordInput = document.getElementById('password');
     
     switch (type) {
-        case 'admin':
-            emailInput.value = 'admin@futuralab.com';
-            passwordInput.value = 'admin123';
-            break;
-        case 'teacher':
-            emailInput.value = 'docente@futuralab.com';
-            passwordInput.value = 'docente123';
-            break;
         case 'student':
-            emailInput.value = 'studente@futuralab.com';
-            passwordInput.value = 'studente123';
+            usernameInput.value = 'testuser';
+            passwordInput.value = 'testpass';
+            break;
+        default:
+            // Solo account studenti sono supportati per il sistema VR
+            usernameInput.value = 'testuser';
+            passwordInput.value = 'testpass';
             break;
     }
     
@@ -1192,10 +1246,8 @@ function init() {
     animate();
     
     console.log('Simulazione educativa VR inizializzata con successo!');
-    console.log('Utenti di esempio:');
-    console.log('- admin@futuralab.com / admin123');
-    console.log('- docente@futuralab.com / docente123');
-    console.log('- studente@futuralab.com / studente123');
+    console.log('Sistema di login integrato con endpoint /vrLogin del backend');
+    console.log('Assicurati che il backend sia avviato su http://localhost:8080');
 }
 
 // Avvia l'applicazione quando il DOM è caricato
