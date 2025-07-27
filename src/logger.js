@@ -6,7 +6,7 @@ class Logger {
         this.logs = [];
         this.maxLogs = 100;
         this.logElement = null;
-        this.createLogDisplay();
+        // this.createLogDisplay(); // COMMENTATO: nascondo i tasti di debug
     }
 
     /**
@@ -149,6 +149,8 @@ class Logger {
 // Crea istanza globale del logger
 window.debugLogger = new Logger();
 
+// COMMENTATO: nascondo il pulsante per scaricare i log
+/*
 // Aggiungi pulsante per scaricare i log
 const downloadButton = document.createElement('button');
 downloadButton.textContent = 'SCARICA LOG';
@@ -172,4 +174,5 @@ downloadButton.onclick = () => {
 
 document.addEventListener('DOMContentLoaded', () => {
     document.body.appendChild(downloadButton);
-}); 
+});
+*/ 

@@ -19,6 +19,10 @@ let currentUser = null;
 let videoPlayerReady = false;
 let simulationMonitoringInterval = null;
 
+// Variabili per gestire i timer e le chiamate API
+let activeTimers = [];
+let isLoggedOut = false;
+
 // Variabili per i controlli FPS
 let moveForward = false;
 let moveBackward = false;
@@ -1030,14 +1034,27 @@ function showWaitingBanner(user) {
                 <div class="loading-spinner"></div>
                 <p>In attesa dell'insegnante...</p>
             </div>
+            
+            <div class="banner-buttons" style="display: flex; gap: 15px; justify-content: center; margin-top: 20px;">
+                <button id="logout-waiting-btn" class="login-button" style="background: linear-gradient(135deg, #dc3545, #c82333);">
+                    <span class="login-text">Logout</span>
+                    <span class="login-loading" style="display: none;">Logout in corso...</span>
+                </button>
+            </div>
         </div>
     `;
     
     document.body.appendChild(banner);
     window.debugLogger.log('Banner di attesa mostrato per utente', user.nome);
     
+    // Event listener per il pulsante Logout
+    const logoutBtn = document.getElementById('logout-waiting-btn');
+    logoutBtn.addEventListener('click', () => {
+        handleLogout();
+    });
+    
     // Dopo 3 secondi, controlla se la simulazione è stata avviata
-    setTimeout(() => {
+    createSafeTimer(() => {
         checkSimulazioneInCorso(user);
     }, 3000);
 }
@@ -1047,6 +1064,12 @@ function showWaitingBanner(user) {
  * @param {Object} user - Dati dell'utente
  */
 async function checkSimulazioneInCorso(user) {
+    // Controlla se l'utente è stato disconnesso
+    if (isLoggedOut) {
+        console.log('Controllo simulazione bloccato - utente disconnesso');
+        return;
+    }
+    
     const API_BASE_URL = 'http://localhost:80/api';
     
     try {
@@ -1077,7 +1100,7 @@ async function checkSimulazioneInCorso(user) {
         } else {
             // Nessuna simulazione trovata, continua a controllare
             window.debugLogger.log('Nessuna simulazione trovata, nuovo controllo tra 5 secondi');
-            setTimeout(() => {
+            createSafeTimer(() => {
                 checkSimulazioneInCorso(user);
             }, 5000);
         }
@@ -1086,7 +1109,7 @@ async function checkSimulazioneInCorso(user) {
         console.error('Errore nel controllo simulazione:', error);
         
         // In caso di errore, riprova dopo 10 secondi
-        setTimeout(() => {
+        createSafeTimer(() => {
             checkSimulazioneInCorso(user);
         }, 10000);
     }
@@ -1136,6 +1159,18 @@ function showStartSimulazioneBanner(user, simulazione) {
                 <span class="login-text">Avvia</span>
                 <span class="login-loading" style="display: none;">Avvio in corso...</span>
             </button>
+            
+            <div class="banner-buttons" style="display: flex; gap: 15px; justify-content: center; margin-top: 20px;">
+                <button id="reload-simulazione-btn" class="login-button" style="background: linear-gradient(135deg, #17a2b8, #138496);">
+                    <span class="login-text">🔄 Ricarica</span>
+                    <span class="login-loading" style="display: none;">Ricarica in corso...</span>
+                </button>
+                
+                <button id="logout-simulazione-btn" class="login-button" style="background: linear-gradient(135deg, #dc3545, #c82333);">
+                    <span class="login-text">Logout</span>
+                    <span class="login-loading" style="display: none;">Logout in corso...</span>
+                </button>
+            </div>
         </div>
     `;
     
@@ -1147,6 +1182,18 @@ function showStartSimulazioneBanner(user, simulazione) {
     avviaBtn.addEventListener('click', () => {
         avviaSimulazione(user, simulazione);
     });
+    
+    // Event listener per il pulsante Ricarica
+    const reloadBtn = document.getElementById('reload-simulazione-btn');
+    reloadBtn.addEventListener('click', () => {
+        handleReloadSimulazione(user);
+    });
+    
+    // Event listener per il pulsante Logout
+    const logoutBtn = document.getElementById('logout-simulazione-btn');
+    logoutBtn.addEventListener('click', () => {
+        handleLogout();
+    });
 }
 
 /**
@@ -1155,6 +1202,12 @@ function showStartSimulazioneBanner(user, simulazione) {
  * @param {Object} simulazione - Dati della simulazione
  */
 async function avviaSimulazione(user, simulazione) {
+    // Controlla se l'utente è stato disconnesso
+    if (isLoggedOut) {
+        console.log('Avvio simulazione bloccato - utente disconnesso');
+        return;
+    }
+    
     const API_BASE_URL = 'http://localhost:80/api';
     const avviaBtn = document.getElementById('avvia-simulazione-btn');
     
@@ -3310,6 +3363,12 @@ async function finishSimulation() {
  * Imposta lo stato della simulazione dello studente a "finito"
  */
 async function setStudentSimulationFinished() {
+    // Controlla se l'utente è stato disconnesso
+    if (isLoggedOut) {
+        console.log('Terminazione simulazione bloccata - utente disconnesso');
+        return;
+    }
+    
     const API_BASE_URL = 'http://localhost:80/api';
     
     try {
@@ -3352,9 +3411,22 @@ function startSimulationMonitoring() {
         clearInterval(simulationMonitoringInterval);
     }
     
+    // Controlla se l'utente è stato disconnesso
+    if (isLoggedOut) {
+        console.log('Monitoraggio simulazione bloccato - utente disconnesso');
+        return;
+    }
+    
     window.debugLogger.log('🔄 Avvio monitoraggio periodico simulazione');
     
     simulationMonitoringInterval = setInterval(async () => {
+        // Controlla se l'utente è stato disconnesso prima di ogni verifica
+        if (isLoggedOut) {
+            console.log('Monitoraggio simulazione interrotto - utente disconnesso');
+            stopSimulationMonitoring();
+            return;
+        }
+        
         const isStillRunning = await verifySimulazioneInCorso();
         if (!isStillRunning) {
             window.debugLogger.log('❌ Simulazione non più attiva - terminazione forzata');
@@ -3379,6 +3451,12 @@ function stopSimulationMonitoring() {
  * @returns {boolean} true se la simulazione è ancora attiva, false altrimenti
  */
 async function verifySimulazioneInCorso() {
+    // Controlla se l'utente è stato disconnesso
+    if (isLoggedOut) {
+        console.log('Verifica simulazione bloccata - utente disconnesso');
+        return false;
+    }
+    
     if (!currentSimulazione) {
         return false;
     }
@@ -3548,6 +3626,12 @@ function showRatingBanner() {
  * @param {number} rating - Il voto da 1 a 3
  */
 async function submitRating(rating) {
+    // Controlla se l'utente è stato disconnesso
+    if (isLoggedOut) {
+        console.log('Invio valutazione bloccato - utente disconnesso');
+        return;
+    }
+    
     window.debugLogger.log('🚀 submitRating chiamata con voto:', rating);
     
     if (!currentUser || !currentSimulazione) {
@@ -3704,6 +3788,9 @@ function cleanupVideoSystem() {
 function handleLoginSuccess(user) {
     console.log('Utente loggato:', user);
     
+    // Reset del flag di logout
+    isLoggedOut = false;
+    
     // Salva l'utente in sessione
     saveUserToSession(user);
     window.debugLogger.log('Utente salvato in localStorage', user);
@@ -3735,8 +3822,61 @@ function handleLoginSuccess(user) {
 /**
  * Gestisce il logout
  */
+/**
+ * Ferma tutti i timer attivi e blocca le chiamate API
+ */
+function stopAllTimers() {
+    console.log('Fermando tutti i timer attivi...');
+    window.debugLogger.log('Fermando tutti i timer attivi');
+    
+    // Ferma tutti i timer registrati
+    activeTimers.forEach(timerId => {
+        clearTimeout(timerId);
+    });
+    activeTimers = [];
+    
+    // Ferma il monitoraggio della simulazione
+    stopSimulationMonitoring();
+    
+    // Imposta il flag di logout
+    isLoggedOut = true;
+}
+
+/**
+ * Crea un timer sicuro che rispetta il flag di logout
+ * @param {Function} callback - Funzione da eseguire
+ * @param {number} delay - Ritardo in millisecondi
+ * @returns {number} ID del timer
+ */
+function createSafeTimer(callback, delay) {
+    if (isLoggedOut) {
+        console.log('Timer bloccato - utente non loggato');
+        return null;
+    }
+    
+    const timerId = setTimeout(() => {
+        if (!isLoggedOut) {
+            callback();
+        }
+    }, delay);
+    
+    activeTimers.push(timerId);
+    return timerId;
+}
+
 function handleLogout() {
     console.log('Logout effettuato');
+    window.debugLogger.log('Logout effettuato dall\'utente');
+    
+    // Ferma tutti i timer e blocca le chiamate API
+    stopAllTimers();
+    
+    // Nascondi tutti i banner attivi
+    hideWaitingBanner();
+    hideStartSimulazioneBanner();
+    
+    // Pulisci il sistema video se attivo
+    cleanupVideoSystem();
     
     // Cancella la sessione utente
     clearUserSession();
@@ -3748,15 +3888,25 @@ function handleLogout() {
     if (userInfo) userInfo.style.display = 'none';
     if (logoutButton) logoutButton.style.display = 'none';
     
-    // Reset del sistema di login
-    // if (login3D) { // login3D è rimosso
-    //     login3D.resetForm();
-    // }
-    
     // Disabilita funzionalità specifiche
     disableUserFeatures();
     isUserLoggedIn = false; // Imposta l'utente come non loggato
     createStaticLoginModal(); // Ristabilisce la modale di login
+}
+
+/**
+ * Gestisce la ricarica della simulazione dal banner di simulazione pronta
+ * @param {Object} user - Dati dell'utente
+ */
+function handleReloadSimulazione(user) {
+    console.log('Ricarica simulazione richiesta');
+    window.debugLogger.log('Ricarica simulazione richiesta per utente', user.nome);
+    
+    // Nascondi il banner di simulazione pronta
+    hideStartSimulazioneBanner();
+    
+    // Mostra di nuovo il banner di attesa
+    showWaitingBanner(user);
 }
 
 /**
@@ -4120,6 +4270,9 @@ window.createSimpleVideoOverlay = createSimpleVideoOverlay;
  */
 function init() {
     console.log('Inizializzazione della simulazione educativa VR...');
+    
+    // Reset del flag di logout all'avvio
+    isLoggedOut = false;
     
     // Inizializza la scena Three.js
     initScene();
