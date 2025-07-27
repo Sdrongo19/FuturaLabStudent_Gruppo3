@@ -4,23 +4,19 @@
  */
 
 // Variabili globali per la scena Three.js
-let scene, camera, renderer, controls;
-let classroomModel, provettaModel;
-let loadedProvette = []; // Array per tenere traccia delle provette caricate
+let scene, camera, renderer, css3dRenderer, controls;
+let classroomModel;
 let raycaster, mouse;
 let isLoadingComplete = false;
 let isUserLoggedIn = false; // Controlla se l'utente ha effettuato il login
 
-// Colori per l'interazione con la provetta
-const PROVETTA_COLORS = [
-    0xff0000, // Rosso
-    0x00ff00, // Verde
-    0x0000ff, // Blu
-    0xffff00, // Giallo
-    0xff00ff, // Magenta
-    0x00ffff  // Ciano
-];
-let currentColorIndex = 0;
+// Variabili per il sistema video
+let videoPanel = null;
+let css3dScene = null;
+let youtubePlayer = null;
+let currentSimulazione = null;
+let currentUser = null;
+let videoPlayerReady = false;
 
 // Variabili per i controlli FPS
 let moveForward = false;
@@ -67,7 +63,7 @@ function initScene() {
     );
     camera.position.set(10, PLAYER_HEIGHT, 10); // Posiziona la camera all'altezza corretta
 
-    // Creazione del renderer
+    // Creazione del renderer WebGL
     const canvas = document.getElementById('three-canvas');
     renderer = new THREE.WebGLRenderer({ 
         canvas: canvas,
@@ -76,6 +72,22 @@ function initScene() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    // Creazione del CSS3DRenderer per video YouTube
+    css3dRenderer = new THREE.CSS3DRenderer();
+    css3dRenderer.setSize(window.innerWidth, window.innerHeight);
+    css3dRenderer.domElement.style.position = 'absolute';
+    css3dRenderer.domElement.style.top = '0';
+    css3dRenderer.domElement.style.left = '0';
+    css3dRenderer.domElement.style.pointerEvents = 'none';
+    css3dRenderer.domElement.style.zIndex = '1000'; // Assicura che sia sopra il canvas 3D
+    css3dRenderer.domElement.id = 'css3d-container';
+    document.body.appendChild(css3dRenderer.domElement);
+    
+    window.debugLogger.log('CSS3D Renderer inizializzato e aggiunto al DOM');
+
+    // Creazione della scena CSS3D separata
+    css3dScene = new THREE.Scene();
 
     // Configurazione dei controlli orbit
     controls = new THREE.OrbitControls(camera, renderer.domElement);
@@ -349,6 +361,7 @@ function loadClassroom() {
             
             scene.add(classroomModel);
             console.log('Classroom caricata con successo');
+            hideLoadingMessage();
         },
         (error) => {
             console.error('Errore nel caricamento della classroom:', error);
@@ -420,130 +433,12 @@ function createSimpleClassroom() {
     addCollidableObject(desk);
 
     console.log('Classroom semplice creata');
-}
-
-/**
- * Carica il modello della provetta
- */
-function loadProvettaModel() {
-    // Crea una provetta semplice se il modello GLB non esiste
-    createSimpleProvetta();
-    
-    // Tentativo di caricamento del modello GLB (commentato per ora)
-    /*
-    loadGLBModel(
-        'models/provetta.glb',
-        (gltf) => {
-            provettaModel = gltf.scene.clone();
-            console.log('Modello provetta caricato con successo');
-            hideLoadingMessage();
-        },
-        (error) => {
-            console.log('Modello provetta non trovato, uso provetta semplice');
-            createSimpleProvetta();
-        }
-    );
-    */
-}
-
-/**
- * Crea una provetta semplice con geometrie basic
- */
-function createSimpleProvetta() {
-    const provettaGroup = new THREE.Group();
-    
-    // Corpo della provetta (cilindro)
-    const bodyGeometry = new THREE.CylinderGeometry(0.3, 0.3, 2, 16);
-    const bodyMaterial = new THREE.MeshLambertMaterial({ 
-        color: 0x88ccff,
-        transparent: true,
-        opacity: 0.7
-    });
-    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-    body.castShadow = true;
-    body.receiveShadow = true;
-    provettaGroup.add(body);
-    
-    // Tappo della provetta
-    const capGeometry = new THREE.CylinderGeometry(0.35, 0.35, 0.2, 16);
-    const capMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
-    const cap = new THREE.Mesh(capGeometry, capMaterial);
-    cap.position.y = 1.1;
-    cap.castShadow = true;
-    provettaGroup.add(cap);
-    
-    // Salva il modello per uso futuro
-    provettaModel = provettaGroup;
-    
-    console.log('Provetta semplice creata');
     hideLoadingMessage();
 }
 
-/**
- * Aggiunge una provetta alla scena
- */
-function addProvetta() {
-    if (!provettaModel) {
-        console.warn('Modello provetta non ancora caricato');
-        return;
-    }
-    
-    // Clona il modello della provetta
-    const newProvetta = provettaModel.clone();
-    
-    // Posiziona la provetta casualmente sul tavolo
-    const x = (Math.random() - 0.5) * 3;
-    const z = -5 + (Math.random() - 0.5) * 1.5;
-    newProvetta.position.set(x, 2.2, z);
-    
-    // Aggiungi proprietà personalizzate per l'interazione
-    newProvetta.userData = {
-        type: 'provetta',
-        id: `provetta_${Date.now()}`,
-        colorIndex: 0,
-        isInteractive: true
-    };
-    
-    // Aggiungi alla scena e all'array di tracciamento
-    scene.add(newProvetta);
-    loadedProvette.push(newProvetta);
-    
-    console.log(`Provetta aggiunta: ${newProvetta.userData.id}`);
-}
 
-/**
- * Gestisce l'interazione con la provetta
- * @param {THREE.Object3D} provetta - L'oggetto provetta cliccato
- */
-function interactWithProvetta(provetta) {
-    if (!provetta.userData || provetta.userData.type !== 'provetta') {
-        return;
-    }
-    
-    // Cambia colore della provetta
-    provetta.userData.colorIndex = (provetta.userData.colorIndex + 1) % PROVETTA_COLORS.length;
-    const newColor = PROVETTA_COLORS[provetta.userData.colorIndex];
-    
-    // Trova il mesh del corpo della provetta e cambia colore
-    provetta.traverse((child) => {
-        if (child.isMesh && child.material.color) {
-            child.material.color.setHex(newColor);
-        }
-    });
-    
-    // Mostra un alert
-    alert(`Provetta ${provetta.userData.id} - Colore cambiato!`);
-    
-    // Animazione di "rimbalzo"
-    const originalY = provetta.position.y;
-    provetta.position.y += 0.3;
-    
-    setTimeout(() => {
-        provetta.position.y = originalY;
-    }, 200);
-    
-    console.log(`Interazione con provetta: ${provetta.userData.id}`);
-}
+
+
 
 /**
  * Gestisce gli eventi del mouse
@@ -622,20 +517,10 @@ function onMouseClick(event) {
         //     window.debugLogger.log('Login non visibile o non inizializzato');
         // }
         
-        // Poi controlla se è una provetta
-        let provetta = clickedObject;
-        while (provetta && (!provetta.userData || provetta.userData.type !== 'provetta')) {
-            provetta = provetta.parent;
-        }
-        
-        if (provetta && provetta.userData && provetta.userData.type === 'provetta') {
-            // Blocca l'interazione con le provette se l'utente non è loggato
-            if (!isUserLoggedIn) {
-                alert('Devi effettuare il login prima di poter interagire con le provette!');
-                return;
-            }
-            window.debugLogger.log('Click su provetta');
-            interactWithProvetta(provetta);
+        // Controlla se è il pannello video
+        if (clickedObject.userData && clickedObject.userData.type === 'videoPanel') {
+            window.debugLogger.log('Click su pannello video CSS3D');
+            handleVideoInteractionCSS3D(clickedObject);
         } else {
             window.debugLogger.log('Click su oggetto non interattivo');
         }
@@ -665,30 +550,15 @@ function onMouseMove(event) {
     // Trova gli oggetti intersecati
     const intersects = raycaster.intersectObjects(scene.children, true);
     
-    // Cambia il cursore se stiamo hovering su una provetta o sul login
-    let isHoveringProvetta = false;
-    let isHoveringLogin = false;
+    // Cambia il cursore se stiamo hovering su oggetti interattivi
+    let isHoveringInteractive = false;
     
     if (intersects.length > 0) {
         const hoveredObject = intersects[0].object;
         
-        // Controlla se stiamo hovering sul login 3D
-        // if (login3D && login3D.isVisible() && hoveredObject.userData) { // login3D è rimosso
-        //     if (hoveredObject.userData.type === 'key' || 
-        //         hoveredObject.userData.type === 'inputField' || 
-        //         hoveredObject.userData.type === 'button') {
-        //         isHoveringLogin = true;
-        //     }
-        // }
-        
-        // Risali nella gerarchia per trovare l'oggetto provetta
-        let provetta = hoveredObject;
-        while (provetta && (!provetta.userData || provetta.userData.type !== 'provetta')) {
-            provetta = provetta.parent;
-        }
-        
-        if (provetta && provetta.userData && provetta.userData.type === 'provetta') {
-            isHoveringProvetta = true;
+        // Controlla se stiamo hovering sul pannello video
+        if (hoveredObject.userData && hoveredObject.userData.type === 'videoPanel') {
+            isHoveringInteractive = true;
         }
     }
     
@@ -696,15 +566,15 @@ function onMouseMove(event) {
     if (fpControls && fpControls.isLocked) {
         const crosshair = document.querySelector('.crosshair');
         if (crosshair) {
-            // if (isHoveringLogin) { // login3D è rimosso
-            //     crosshair.classList.add('login-target');
-            // } else {
-            //     crosshair.classList.remove('login-target');
-            // }
+            if (isHoveringInteractive) {
+                crosshair.classList.add('interactive-target');
+            } else {
+                crosshair.classList.remove('interactive-target');
+            }
         }
     } else {
         // Cambia il cursore in modalità normale
-        renderer.domElement.style.cursor = (isHoveringProvetta || isHoveringLogin) ? 'pointer' : 'grab';
+        renderer.domElement.style.cursor = isHoveringInteractive ? 'pointer' : 'grab';
     }
 }
 
@@ -841,14 +711,18 @@ function animate() {
         controls.update();
     }
     
-    // Animazione delle provette
-    loadedProvette.forEach((provetta, index) => {
-        if (provetta.userData && provetta.userData.type === 'provetta') {
-            provetta.rotation.y += 0.005 * (index + 1);
-        }
-    });
+    // Animazione del pannello video (se presente)
+    if (videoPanel && videoPanel.userData) {
+        // Leggero ondeggiamento del pannello video CSS3D
+        videoPanel.position.y = 15 + Math.sin(Date.now() * 0.001) * 0.2;
+    }
     
     renderer.render(scene, camera);
+    
+    // Renderizza CSS3D solo se necessario (per compatibilità)
+    if (css3dRenderer && css3dScene) {
+    css3dRenderer.render(css3dScene, camera);
+    }
 }
 
 /**
@@ -858,6 +732,7 @@ function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+    css3dRenderer.setSize(window.innerWidth, window.innerHeight);
 }
 
 /**
@@ -875,11 +750,7 @@ function hideLoadingMessage() {
  * Configura gli event listener per l'interfaccia utente
  */
 function setupUI() {
-    // Pulsante per aggiungere provette
-    const addProvettaBtn = document.getElementById('add-provetta-btn');
-    if (addProvettaBtn) {
-        addProvettaBtn.addEventListener('click', addProvetta);
-    }
+
     
     // Pulsante per mostrare il login
     // const loginBtn = document.getElementById('login-button'); // login3D è rimosso
@@ -1164,10 +1035,20 @@ async function avviaSimulazione(user, simulazione) {
             hideStartSimulazioneBanner();
             window.debugLogger.log('Simulazione avviata con successo per studente', user.nome);
             
-            // Mostra messaggio di conferma
-            setTimeout(() => {
-                alert(`Simulazione avviata con successo! Buon lavoro, ${user.nome}!`);
-            }, 500);
+            // Salva i dati per uso futuro
+            currentUser = user;
+            currentSimulazione = simulazione;
+            
+            // Gestisci in base al tipo di simulazione
+            if (simulazione.tipoSimulazione === 1) {
+                // È un video - avvia il sistema video
+                window.debugLogger.log('Avvio sistema video', simulazione.macrocategoria.video);
+                createVideoPanel(simulazione.macrocategoria.video);
+            } else {
+                // È una simulazione normale - logic da implementare in futuro
+                window.debugLogger.log('Simulazione normale - da implementare');
+                alert(`Simulazione normale avviata! Buon lavoro, ${user.nome}!`);
+            }
         } else {
             // Errore nell'avvio
             throw new Error(result);
@@ -1199,6 +1080,982 @@ function hideStartSimulazioneBanner() {
             }
         }, 500);
     }
+}
+
+/**
+ * Estrae l'ID video da un URL YouTube
+ * @param {string} url - URL YouTube completo
+ * @returns {string|null} - ID del video o null se non valido
+ */
+function extractYouTubeVideoId(url) {
+    const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+    const match = url.match(regex);
+    return match ? match[1] : null;
+}
+
+/**
+ * Crea il pannello video fluttuante nella scena VR usando CSS3D con iframe YouTube
+ * @param {string} videoUrl - URL del video YouTube
+ */
+function createVideoPanel(videoUrl) {
+    // Rimuovi pannello esistente se presente
+    if (videoPanel) {
+        if (videoPanel.parent === scene) {
+            scene.remove(videoPanel);
+        } else if (videoPanel.parent === css3dScene) {
+            css3dScene.remove(videoPanel);
+        }
+        // Pulisci elementi precedenti
+        const oldVideo = document.getElementById('vr-video-element');
+        if (oldVideo) oldVideo.remove();
+        const oldIframe = document.getElementById('youtube-player-container');
+        if (oldIframe) oldIframe.remove();
+        videoPanel = null;
+    }
+
+    const videoId = extractYouTubeVideoId(videoUrl);
+    if (!videoId) {
+        console.error('URL YouTube non valido:', videoUrl);
+        window.debugLogger.log('URL YouTube non valido', videoUrl);
+        showVideoErrorBanner('URL video non valido');
+        return;
+    }
+
+    window.debugLogger.log('ID video estratto', videoId);
+
+    // Crea un contenitore per l'iframe YouTube con design migliorato
+    const containerDiv = document.createElement('div');
+    containerDiv.id = 'youtube-player-container';
+    containerDiv.className = 'youtube-video-element';
+    containerDiv.style.cssText = `
+        width: 800px;
+        height: 450px;
+        background: #000;
+        border: 3px solid #ff6b35;
+        border-radius: 10px;
+        padding: 5px;
+        box-shadow: 0 0 20px rgba(255, 107, 53, 0.5);
+        overflow: hidden;
+        position: relative;
+    `;
+    
+    // Crea l'iframe YouTube con parametri ottimizzati
+    const iframe = document.createElement('iframe');
+    iframe.id = 'youtube-player-iframe';
+    iframe.style.cssText = `
+        width: 100%;
+        height: 100%;
+        border: none;
+        border-radius: 7px;
+    `;
+    
+    // URL dell'iframe con parametri per ridurre errori cross-origin
+    const embedUrl = `https://www.youtube.com/embed/${videoId}?` + new URLSearchParams({
+        autoplay: 1,
+        controls: 1,
+        rel: 0,
+        showinfo: 0,
+        modestbranding: 1,
+        fs: 1,
+        enablejsapi: 0, // Disabilita JS API per ridurre errori cross-origin
+        origin: window.location.origin,
+        allow: 'autoplay; encrypted-media',
+        mute: 0
+    });
+    
+    iframe.src = embedUrl;
+    iframe.allow = 'autoplay; encrypted-media; fullscreen';
+    iframe.allowfullscreen = true;
+    
+    // Aggiungi un overlay per gestire i click
+    const clickOverlay = document.createElement('div');
+    clickOverlay.id = 'video-click-overlay';
+    clickOverlay.style.cssText = `
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: transparent;
+        z-index: 10;
+        cursor: pointer;
+        display: none;
+    `;
+    
+    clickOverlay.addEventListener('click', () => {
+        window.debugLogger.log('🎮 Click su video overlay');
+        showVideoStatusMessage('Click rilevato sul video');
+    });
+    
+    // Aggiungi messaggio di caricamento
+    const loadingMsg = document.createElement('div');
+    loadingMsg.id = 'loading-message';
+    loadingMsg.style.cssText = `
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+        font-size: 18px;
+        font-weight: bold;
+        text-align: center;
+        z-index: 5;
+        background: rgba(0,0,0,0.7);
+        padding: 20px;
+        border-radius: 10px;
+    `;
+    loadingMsg.innerHTML = '🎬 Caricamento video YouTube...<br>Attendere...';
+    
+    // Assembla il contenitore
+    containerDiv.appendChild(loadingMsg);
+    containerDiv.appendChild(iframe);
+    containerDiv.appendChild(clickOverlay);
+    
+    // Crea l'oggetto CSS3D
+    const css3dObject = new THREE.CSS3DObject(containerDiv);
+    
+    // Posiziona il pannello in modo ottimale
+    css3dObject.position.set(0, 15, -8);
+    css3dObject.rotation.y = 0;
+    css3dObject.scale.set(0.025, 0.025, 0.025);
+    
+    // Salva il riferimento
+    videoPanel = css3dObject;
+    videoPanel.userData = { 
+        type: 'videoPanel', 
+        videoId: videoId,
+        iframe: iframe,
+        container: containerDiv,
+        clickOverlay: clickOverlay
+    };
+    
+    // Aggiungi alla scena CSS3D
+    css3dScene.add(videoPanel);
+    
+    // Gestione eventi iframe
+    iframe.onload = () => {
+        window.debugLogger.log('✅ Iframe YouTube caricato completamente');
+        
+        // Rimuovi messaggio di caricamento dopo un breve delay
+        setTimeout(() => {
+            if (loadingMsg.parentNode) {
+                loadingMsg.style.opacity = '0';
+                setTimeout(() => {
+                    if (loadingMsg.parentNode) {
+                        loadingMsg.remove();
+                    }
+                }, 300);
+            }
+        }, 2000);
+        
+        // Abilita overlay per click dopo il caricamento
+        setTimeout(() => {
+            clickOverlay.style.display = 'block';
+        }, 3000);
+    };
+    
+    iframe.onerror = () => {
+        window.debugLogger.log('❌ Errore caricamento iframe YouTube');
+        loadingMsg.innerHTML = '❌ Errore caricamento video<br>Verifica la connessione';
+        loadingMsg.style.background = 'rgba(255,0,0,0.7)';
+    };
+    
+    window.debugLogger.log('Pannello video CSS3D creato con iframe YouTube', {
+        position: css3dObject.position,
+        videoId: videoId,
+        embedUrl: embedUrl
+    });
+    
+    // Debug del sistema dopo la creazione
+    setTimeout(() => {
+        debugVideoSystem();
+    }, 1000);
+}
+
+/**
+ * Carica un video YouTube nell'elemento video HTML5
+ * @param {string} videoId - ID del video YouTube
+ * @param {HTMLVideoElement} videoElement - Elemento video HTML5
+ */
+function loadVideoFromYouTube(videoId, videoElement) {
+    window.debugLogger.log('🎬 Tentativo caricamento video YouTube', videoId);
+    
+    // Lista di possibili formati video YouTube
+    const videoUrls = [
+        `https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1`,
+        `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1`,
+        `https://invidio.us/embed/${videoId}?autoplay=1`
+    ];
+    
+    // Crea un iframe nascosto per gestire il player YouTube
+    const hiddenIframe = document.createElement('iframe');
+    hiddenIframe.id = 'hidden-youtube-iframe';
+    hiddenIframe.style.display = 'none';
+    hiddenIframe.style.position = 'absolute';
+    hiddenIframe.style.top = '-1000px';
+    hiddenIframe.src = videoUrls[0];
+    hiddenIframe.allow = 'autoplay; encrypted-media';
+    document.body.appendChild(hiddenIframe);
+    
+    // Mostra un messaggio di caricamento sulla texture
+    showVideoLoadingMessage(videoElement);
+    
+    // Gestione eventi per l'iframe
+    hiddenIframe.onload = () => {
+        window.debugLogger.log('✅ Iframe YouTube caricato');
+        
+        // Tenta di ottenere l'audio dal iframe
+        setTimeout(() => {
+            checkVideoPlayback(videoElement, hiddenIframe);
+        }, 2000);
+    };
+    
+    hiddenIframe.onerror = () => {
+        window.debugLogger.log('❌ Errore caricamento iframe YouTube');
+        showVideoErrorMessage(videoElement);
+    };
+    
+    // Gestione eventi dell'elemento video
+    videoElement.addEventListener('loadstart', () => {
+        window.debugLogger.log('📺 Video inizia a caricare');
+    });
+    
+    videoElement.addEventListener('loadeddata', () => {
+        window.debugLogger.log('✅ Dati video caricati');
+        hideVideoLoadingMessage(videoElement);
+    });
+    
+    videoElement.addEventListener('error', (e) => {
+        window.debugLogger.log('❌ Errore video:', e.error);
+        showVideoErrorMessage(videoElement);
+    });
+    
+    // Fallback: usa un video di test se YouTube non funziona
+    setTimeout(() => {
+        if (videoElement.readyState === 0) {
+            window.debugLogger.log('⚠️ Timeout YouTube, uso video di test');
+            useTestVideo(videoElement);
+        }
+    }, 10000);
+}
+
+/**
+ * Mostra un messaggio di caricamento sulla texture video
+ */
+function showVideoLoadingMessage(videoElement) {
+    // Crea un canvas temporaneo per mostrare il messaggio
+    const canvas = document.createElement('canvas');
+    canvas.width = 1920;
+    canvas.height = 1080;
+    const ctx = canvas.getContext('2d');
+    
+    // Sfondo scuro
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Bordo arancione
+    ctx.strokeStyle = '#ff6b35';
+    ctx.lineWidth = 20;
+    ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+    
+    // Testo di caricamento
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 80px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('🎬 Caricamento Video...', canvas.width / 2, canvas.height / 2 - 50);
+    ctx.font = '60px Arial';
+    ctx.fillText('Preparazione del contenuto YouTube', canvas.width / 2, canvas.height / 2 + 50);
+    
+    // Converti canvas in blob e usalo come sorgente video temporanea
+    canvas.toBlob(blob => {
+        const url = URL.createObjectURL(blob);
+        videoElement.poster = url;
+    });
+}
+
+/**
+ * Nasconde il messaggio di caricamento
+ */
+function hideVideoLoadingMessage(videoElement) {
+    if (videoElement.poster) {
+        URL.revokeObjectURL(videoElement.poster);
+        videoElement.poster = '';
+    }
+}
+
+/**
+ * Mostra un messaggio di errore sulla texture video
+ */
+function showVideoErrorMessage(videoElement) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1920;
+    canvas.height = 1080;
+    const ctx = canvas.getContext('2d');
+    
+    // Sfondo rosso scuro
+    ctx.fillStyle = '#2d1b1b';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Bordo rosso
+    ctx.strokeStyle = '#ff4444';
+    ctx.lineWidth = 20;
+    ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+    
+    // Testo di errore
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 80px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('❌ Errore Video', canvas.width / 2, canvas.height / 2 - 100);
+    ctx.font = '60px Arial';
+    ctx.fillText('Il video YouTube non può essere caricato', canvas.width / 2, canvas.height / 2);
+    ctx.font = '50px Arial';
+    ctx.fillText('Verifica la connessione internet', canvas.width / 2, canvas.height / 2 + 80);
+    
+    canvas.toBlob(blob => {
+        const url = URL.createObjectURL(blob);
+        videoElement.poster = url;
+    });
+}
+
+/**
+ * Usa un video di test quando YouTube non funziona
+ */
+function useTestVideo(videoElement) {
+    window.debugLogger.log('🧪 Caricamento video di test');
+    
+    // Crea un canvas animato come fallback
+    const canvas = document.createElement('canvas');
+    canvas.width = 1920;
+    canvas.height = 1080;
+    const ctx = canvas.getContext('2d');
+    
+    let frame = 0;
+    const animate = () => {
+        // Sfondo animato
+        const hue = (frame * 2) % 360;
+        ctx.fillStyle = `hsl(${hue}, 50%, 20%)`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Bordo arancione
+        ctx.strokeStyle = '#ff6b35';
+        ctx.lineWidth = 20;
+        ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+        
+        // Testo animato
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 100px Arial';
+        ctx.textAlign = 'center';
+        const scale = 1 + Math.sin(frame * 0.1) * 0.1;
+        ctx.save();
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.scale(scale, scale);
+        ctx.fillText('🎬 VIDEO DEMO', 0, -50);
+        ctx.restore();
+        
+        ctx.font = '60px Arial';
+        ctx.fillText('Simulazione Educativa VR', canvas.width / 2, canvas.height / 2 + 100);
+        
+        frame++;
+        if (frame < 300) { // 10 secondi a 30fps
+            requestAnimationFrame(animate);
+        }
+    };
+    
+    animate();
+    
+    // Converti canvas in stream video
+    const stream = canvas.captureStream(30);
+    videoElement.srcObject = stream;
+    videoElement.play();
+}
+
+/**
+ * Controlla se il video sta riproducendo correttamente
+ */
+function checkVideoPlayback(videoElement, iframe) {
+    let checks = 0;
+    const maxChecks = 10;
+    
+    const monitor = setInterval(() => {
+        checks++;
+        window.debugLogger.log(`🔍 Check playback ${checks}/${maxChecks}`);
+        
+        if (videoElement.readyState >= 2) { // HAVE_CURRENT_DATA
+            window.debugLogger.log('✅ Video pronto per la riproduzione');
+            clearInterval(monitor);
+            return;
+        }
+        
+        if (checks >= maxChecks) {
+            window.debugLogger.log('⚠️ Video non pronto, uso fallback');
+            useTestVideo(videoElement);
+            clearInterval(monitor);
+        }
+    }, 1000);
+}
+
+/**
+ * Gestisce l'interazione con il pannello video CSS3D
+ * @param {THREE.Object3D} videoObject - L'oggetto video CSS3D cliccato
+ */
+function handleVideoInteractionCSS3D(videoObject) {
+    if (!videoObject.userData || !videoObject.userData.iframe) {
+        window.debugLogger.log('❌ Oggetto video CSS3D non valido');
+        return;
+    }
+    
+    window.debugLogger.log('🎮 Interazione video CSS3D', {
+        videoId: videoObject.userData.videoId,
+        iframeSrc: videoObject.userData.iframe.src
+    });
+    
+    // Mostra informazioni sul video
+    showVideoStatusMessage('Video YouTube attivo - Usa i controlli del player');
+    
+    // Attiva temporaneamente l'overlay click se disponibile
+    if (videoObject.userData.clickOverlay) {
+        const overlay = videoObject.userData.clickOverlay;
+        overlay.style.background = 'rgba(255,107,53,0.1)';
+        overlay.style.display = 'block';
+        
+        setTimeout(() => {
+            overlay.style.background = 'transparent';
+        }, 500);
+    }
+    
+    // Focus sull'iframe per permettere l'interazione diretta
+    if (videoObject.userData.iframe) {
+        try {
+            videoObject.userData.iframe.focus();
+            window.debugLogger.log('✅ Focus impostato su iframe YouTube');
+        } catch (e) {
+            window.debugLogger.log('⚠️ Impossibile impostare focus su iframe');
+        }
+    }
+}
+
+/**
+ * Gestisce l'interazione con il pannello video (VideoTexture - legacy)
+ * @param {THREE.Object3D} videoObject - L'oggetto video cliccato
+ */
+function handleVideoInteraction(videoObject) {
+    if (!videoObject.userData || !videoObject.userData.videoElement) {
+        window.debugLogger.log('❌ Oggetto video non valido');
+        return;
+    }
+    
+    const video = videoObject.userData.videoElement;
+    
+    window.debugLogger.log('🎮 Interazione video', {
+        paused: video.paused,
+        currentTime: video.currentTime,
+        duration: video.duration,
+        readyState: video.readyState
+    });
+    
+    // Toggle play/pause
+    if (video.paused) {
+        video.play()
+            .then(() => {
+                window.debugLogger.log('▶️ Video in riproduzione');
+                showVideoStatusMessage('Video in riproduzione');
+            })
+            .catch(error => {
+                window.debugLogger.log('❌ Errore riproduzione video:', error.message);
+                showVideoStatusMessage('Errore: ' + error.message);
+            });
+    } else {
+        video.pause();
+        window.debugLogger.log('⏸️ Video in pausa');
+        showVideoStatusMessage('Video in pausa');
+    }
+}
+
+/**
+ * Mostra un messaggio di stato video
+ * @param {string} message - Messaggio da mostrare
+ */
+function showVideoStatusMessage(message) {
+    // Rimuovi messaggio precedente se esiste
+    const existingMessage = document.getElementById('video-status-message');
+    if (existingMessage) {
+        existingMessage.remove();
+    }
+    
+    // Crea nuovo messaggio
+    const messageDiv = document.createElement('div');
+    messageDiv.id = 'video-status-message';
+    messageDiv.textContent = message;
+    messageDiv.style.cssText = `
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(255, 107, 53, 0.9);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 5px;
+        font-size: 16px;
+        font-weight: bold;
+        z-index: 10000;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        transition: opacity 0.3s ease;
+    `;
+    
+    document.body.appendChild(messageDiv);
+    
+    // Rimuovi automaticamente dopo 3 secondi
+    setTimeout(() => {
+        messageDiv.style.opacity = '0';
+        setTimeout(() => {
+            if (messageDiv.parentNode) {
+                messageDiv.remove();
+            }
+        }, 300);
+    }, 3000);
+}
+
+/**
+ * Carica l'API YouTube se non è già caricata
+ * @param {Function} callback - Funzione da chiamare quando l'API è pronta
+ */
+function loadYouTubeAPI(callback) {
+    // Se l'API è già disponibile, esegui il callback
+    if (window.YT && window.YT.Player) {
+        window.debugLogger.log('API YouTube già caricata');
+        callback();
+        return;
+    }
+
+    // Se l'API sta caricando, aggiungi il callback alla coda
+    if (window.youTubeAPICallbacks) {
+        window.youTubeAPICallbacks.push(callback);
+        return;
+    }
+
+    // Inizializza la coda dei callback
+    window.youTubeAPICallbacks = [callback];
+
+    // Sostituisci la funzione onYouTubeIframeAPIReady
+    window.onYouTubeIframeAPIReady = function() {
+        window.debugLogger.log('API YouTube caricata, esecuzione callback');
+        
+        // Esegui tutti i callback in attesa
+        window.youTubeAPICallbacks.forEach(cb => {
+            try {
+                cb();
+            } catch (error) {
+                console.error('Errore nel callback YouTube API:', error);
+            }
+        });
+        
+        // Pulisci la coda
+        window.youTubeAPICallbacks = [];
+    };
+
+    window.debugLogger.log('Attesa caricamento API YouTube...');
+}
+
+/**
+ * Inizializza il player YouTube
+ * @param {string} videoId - ID del video YouTube
+ */
+function initYouTubePlayer(videoId) {
+    window.debugLogger.log('Inizializzazione player YouTube', videoId);
+
+    // Aspetta che l'elemento DOM sia disponibile nel CSS3D
+    setTimeout(() => {
+        const playerElement = document.getElementById('youtube-player');
+        if (!playerElement) {
+            window.debugLogger.log('Elemento youtube-player non trovato nel DOM');
+            showVideoErrorBanner('Elemento player non trovato');
+            return;
+        }
+
+        window.debugLogger.log('Elemento youtube-player trovato, creazione player...');
+
+        try {
+        youtubePlayer = new YT.Player('youtube-player', {
+                height: '450',
+                width: '800',
+            videoId: videoId,
+            playerVars: {
+                'autoplay': 1,
+                'controls': 1,
+                'rel': 0,
+                'showinfo': 0,
+                    'modestbranding': 1,
+                    'fs': 1,
+                    'enablejsapi': 1,
+                    'origin': window.location.origin
+            },
+            events: {
+                'onReady': onPlayerReady,
+                'onStateChange': onPlayerStateChange,
+                'onError': onPlayerError
+            }
+        });
+
+            window.debugLogger.log('Player YouTube istanziato con successo');
+            
+            // Avvia il monitoraggio del player
+            monitorYouTubePlayer();
+        } catch (error) {
+            console.error('Errore nella creazione del player YouTube:', error);
+            window.debugLogger.log('Errore creazione player', error.message);
+            showVideoErrorBanner('Errore nella creazione del player video');
+        }
+    }, 500); // Aspetta 500ms per assicurarsi che l'elemento sia nel DOM
+
+    function onPlayerReady(event) {
+        videoPlayerReady = true;
+        window.debugLogger.log('🎉 Player YouTube pronto per la riproduzione');
+        
+        // Prova ad avviare il video
+        try {
+            event.target.playVideo();
+            window.debugLogger.log('▶️ Avvio riproduzione video richiesto');
+        } catch (error) {
+            console.error('Errore nell\'avvio del video:', error);
+            window.debugLogger.log('❌ Errore avvio video', error.message);
+        }
+    }
+
+    function onPlayerStateChange(event) {
+        const states = {
+            '-1': 'NON_INIZIATO',
+            '0': 'TERMINATO',
+            '1': 'IN_RIPRODUZIONE',
+            '2': 'IN_PAUSA',
+            '3': 'BUFFERING',
+            '5': 'IN_CODA'
+        };
+        
+        const stateName = states[event.data] || 'SCONOSCIUTO';
+        window.debugLogger.log('📺 Stato player cambiato', `${event.data} (${stateName})`);
+        
+        // Se il video è in riproduzione
+        if (event.data === YT.PlayerState.PLAYING) {
+            window.debugLogger.log('✅ Video in riproduzione');
+        }
+        
+        // Se il video è finito (stato 0)
+        if (event.data === YT.PlayerState.ENDED) {
+            window.debugLogger.log('🏁 Video terminato');
+            finishSimulation();
+        }
+        
+        // Se c'è un errore di buffering prolungato
+        if (event.data === YT.PlayerState.BUFFERING) {
+            window.debugLogger.log('⏳ Video in buffering...');
+        }
+    }
+
+    function onPlayerError(event) {
+        const errorMessages = {
+            2: 'Parametro richiesta non valido',
+            5: 'Errore del player HTML5',
+            100: 'Video non trovato o privato',
+            101: 'Video non disponibile per la riproduzione incorporata',
+            150: 'Video non disponibile per la riproduzione incorporata'
+        };
+        
+        const errorMsg = errorMessages[event.data] || `Errore sconosciuto (${event.data})`;
+        console.error('Errore player YouTube:', event.data, errorMsg);
+        window.debugLogger.log('❌ Errore player YouTube', `${event.data}: ${errorMsg}`);
+        showVideoErrorBanner(`Errore video: ${errorMsg}`);
+    }
+}
+
+/**
+ * Funzione di debug per verificare lo stato del sistema video CSS3D
+ */
+function debugVideoSystem() {
+    window.debugLogger.log('=== DEBUG SISTEMA VIDEO (CSS3D + YouTube) ===');
+    
+    // Verifica presenza pannello video
+    window.debugLogger.log('Video Panel presente', !!videoPanel);
+    if (videoPanel) {
+        window.debugLogger.log('Video Panel tipo', videoPanel.type);
+        window.debugLogger.log('Video Panel position', {
+            x: videoPanel.position.x,
+            y: videoPanel.position.y,
+            z: videoPanel.position.z
+        });
+        window.debugLogger.log('Video Panel scale', {
+            x: videoPanel.scale.x,
+            y: videoPanel.scale.y,
+            z: videoPanel.scale.z
+        });
+        window.debugLogger.log('Video Panel userData', videoPanel.userData);
+        
+        // Verifica iframe YouTube
+        if (videoPanel.userData && videoPanel.userData.iframe) {
+            const iframe = videoPanel.userData.iframe;
+            window.debugLogger.log('YouTube Iframe presente', !!iframe);
+            window.debugLogger.log('YouTube Iframe src', iframe.src);
+            window.debugLogger.log('YouTube Iframe dimensioni', {
+                width: iframe.style.width,
+                height: iframe.style.height
+            });
+        }
+        
+        // Verifica container
+        if (videoPanel.userData && videoPanel.userData.container) {
+            const container = videoPanel.userData.container;
+            window.debugLogger.log('Container presente', !!container);
+            window.debugLogger.log('Container ID', container.id);
+            window.debugLogger.log('Container dimensioni', {
+                width: container.style.width,
+                height: container.style.height
+            });
+        }
+    }
+    
+    // Verifica CSS3D renderer e scena
+    window.debugLogger.log('CSS3D Renderer presente', !!css3dRenderer);
+    window.debugLogger.log('CSS3D Scene presente', !!css3dScene);
+    if (css3dScene) {
+        window.debugLogger.log('Oggetti nella scena CSS3D', css3dScene.children.length);
+        const videoObjects = css3dScene.children.filter(obj => 
+            obj.userData && obj.userData.type === 'videoPanel'
+        );
+        window.debugLogger.log('Oggetti video nella scena CSS3D', videoObjects.length);
+    }
+    
+    // Verifica container CSS3D nel DOM
+    const css3dContainer = document.getElementById('css3d-container');
+    window.debugLogger.log('CSS3D Container presente', !!css3dContainer);
+    if (css3dContainer) {
+        window.debugLogger.log('CSS3D Container visibile', css3dContainer.style.display !== 'none');
+        window.debugLogger.log('CSS3D Container z-index', css3dContainer.style.zIndex);
+        window.debugLogger.log('CSS3D Container dimensioni', {
+            width: css3dContainer.style.width,
+            height: css3dContainer.style.height
+        });
+    }
+    
+    // Verifica elementi DOM YouTube
+    const youtubeContainer = document.getElementById('youtube-player-container');
+    window.debugLogger.log('YouTube Container DOM presente', !!youtubeContainer);
+    if (youtubeContainer) {
+        window.debugLogger.log('YouTube Container visibile', youtubeContainer.style.display !== 'none');
+        window.debugLogger.log('YouTube Container figli', youtubeContainer.children.length);
+    }
+    
+    const youtubeIframe = document.getElementById('youtube-player-iframe');
+    window.debugLogger.log('YouTube Iframe DOM presente', !!youtubeIframe);
+    if (youtubeIframe) {
+        window.debugLogger.log('YouTube Iframe loaded', youtubeIframe.complete);
+        window.debugLogger.log('YouTube Iframe contentDocument', !!youtubeIframe.contentDocument);
+    }
+    
+    // Verifica renderer
+    window.debugLogger.log('WebGL Renderer presente', !!renderer);
+    if (renderer) {
+        window.debugLogger.log('Renderer info', {
+            width: renderer.domElement.width,
+            height: renderer.domElement.height,
+            pixelRatio: renderer.getPixelRatio()
+        });
+    }
+    
+    window.debugLogger.log('=== FINE DEBUG ===');
+}
+
+/**
+ * Monitora il player YouTube per 10 secondi dopo l'inizializzazione
+ */
+function monitorYouTubePlayer() {
+    let checks = 0;
+    const maxChecks = 20; // 10 secondi con check ogni 500ms
+    
+    const monitor = setInterval(() => {
+        checks++;
+        window.debugLogger.log(`🔍 Monitor YouTube ${checks}/${maxChecks}`);
+        
+        const playerElement = document.getElementById('youtube-player');
+        if (playerElement) {
+            const iframe = playerElement.querySelector('iframe');
+            if (iframe) {
+                window.debugLogger.log('✅ Iframe YouTube rilevato!', iframe.src);
+                clearInterval(monitor);
+                return;
+            }
+        }
+        
+        if (youtubePlayer && youtubePlayer.getPlayerState) {
+            try {
+                const state = youtubePlayer.getPlayerState();
+                if (state !== -1) {
+                    window.debugLogger.log('✅ Player YouTube attivo, stato:', state);
+                    clearInterval(monitor);
+                    return;
+                }
+            } catch (e) {
+                // Player non ancora pronto
+            }
+        }
+        
+        if (checks >= maxChecks) {
+            window.debugLogger.log('❌ Timeout monitoring YouTube player');
+            clearInterval(monitor);
+            debugVideoSystem();
+        }
+    }, 500);
+}
+
+// Esponi le funzioni di debug globalmente per test manuali
+window.debugVideoSystem = debugVideoSystem;
+
+/**
+ * Funzione globale per testare il sistema video CSS3D con YouTube
+ * @param {string} videoUrl - URL del video da testare (opzionale)
+ */
+window.testNewVideoSystem = function(videoUrl = 'https://www.youtube.com/watch?v=WIRoDrrGPx4') {
+    window.debugLogger.log('🧪 Test sistema video CSS3D con YouTube', videoUrl);
+    
+    // Pulisci sistema precedente
+    if (videoPanel) {
+        if (videoPanel.parent === scene) {
+            scene.remove(videoPanel);
+        } else if (videoPanel.parent === css3dScene) {
+            css3dScene.remove(videoPanel);
+        }
+        
+        // Pulisci elementi DOM
+        const oldVideo = document.getElementById('vr-video-element');
+        if (oldVideo) oldVideo.remove();
+        const oldContainer = document.getElementById('youtube-player-container');
+        if (oldContainer) oldContainer.remove();
+        
+        videoPanel = null;
+    }
+    
+    // Crea nuovo pannello video
+    createVideoPanel(videoUrl);
+    
+    // Debug dopo 3 secondi per permettere il caricamento dell'iframe
+    setTimeout(() => {
+        debugVideoSystem();
+        window.debugLogger.log('✅ Se vedi il video YouTube nel pannello 3D, il sistema funziona!');
+        window.debugLogger.log('💡 Usa i controlli del player YouTube per play/pause/volume');
+    }, 3000);
+    
+    window.debugLogger.log('✅ Test sistema video CSS3D avviato - attendi il caricamento...');
+};
+
+/**
+ * Mostra un banner di errore video
+ * @param {string} errorMessage - Messaggio di errore
+ */
+function showVideoErrorBanner(errorMessage) {
+    const banner = document.createElement('div');
+    banner.id = 'video-error-banner';
+    banner.className = 'login-modal';
+    
+    banner.innerHTML = `
+        <div class="login-modal-content">
+            <div class="login-header">
+                <h2>❌ Errore Video</h2>
+                <p>${errorMessage}</p>
+            </div>
+            
+            <button id="termina-simulazione-btn" class="login-button" style="background: linear-gradient(135deg, #dc3545, #c82333);">
+                <span class="login-text">Termina</span>
+                <span class="login-loading" style="display: none;">Terminando...</span>
+            </button>
+        </div>
+    `;
+    
+    document.body.appendChild(banner);
+    
+    // Event listener per il pulsante Termina
+    const terminaBtn = document.getElementById('termina-simulazione-btn');
+    terminaBtn.addEventListener('click', () => {
+        finishSimulation();
+    });
+}
+
+/**
+ * Termina la simulazione settando lo stato a "finito"
+ */
+async function finishSimulation() {
+    if (!currentUser || !currentSimulazione) {
+        console.error('Dati utente o simulazione mancanti');
+        return;
+    }
+
+    const API_BASE_URL = 'http://localhost:80/api';
+    
+    try {
+        window.debugLogger.log('Terminando simulazione', { 
+            studente: currentUser.id, 
+            simulazione: currentSimulazione.id 
+        });
+        
+        const response = await fetch(`${API_BASE_URL}/setStatoSimulazioneStudente`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                idSimulazione: currentSimulazione.id,
+                idStudente: currentUser.id,
+                stato: 'finito'
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.text();
+        window.debugLogger.log('Simulazione terminata', result);
+
+        // Pulisci tutto
+        cleanupVideoSystem();
+        
+        // Mostra messaggio di completamento
+        alert('Simulazione completata con successo!');
+        
+    } catch (error) {
+        console.error('Errore nel terminare la simulazione:', error);
+        window.debugLogger.log('Errore nel terminare la simulazione', error.message);
+        alert('Errore nel completare la simulazione');
+    }
+}
+
+/**
+ * Pulisce il sistema video
+ */
+function cleanupVideoSystem() {
+    // Rimuovi il pannello video dalla scena CSS3D
+    if (videoPanel) {
+        css3dScene.remove(videoPanel);
+        videoPanel = null;
+    }
+    
+    // Ferma e rimuovi il player YouTube
+    if (youtubePlayer) {
+        youtubePlayer.destroy();
+        youtubePlayer = null;
+        videoPlayerReady = false;
+    }
+    
+    // Rimuovi elementi DOM (canvas non più necessario con CSS3DRenderer)
+    
+    const playerDiv = document.getElementById('youtube-player');
+    if (playerDiv) playerDiv.remove();
+    
+    const errorBanner = document.getElementById('video-error-banner');
+    if (errorBanner) errorBanner.remove();
+    
+    // Reset variabili
+    currentSimulazione = null;
+    
+    window.debugLogger.log('Sistema video pulito');
 }
 
 /**
@@ -1518,6 +2375,108 @@ window.clearUserSession = clearUserSession;
 window.isUserSessionActive = isUserSessionActive;
 
 /**
+ * Crea un overlay video semplice per test (senza CSS3D)
+ * @param {string} videoUrl - URL del video YouTube
+ */
+function createSimpleVideoOverlay(videoUrl) {
+    const videoId = extractYouTubeVideoId(videoUrl);
+    if (!videoId) {
+        window.debugLogger.log('URL YouTube non valido', videoUrl);
+        return;
+    }
+
+    // Rimuovi overlay esistente
+    const existingOverlay = document.getElementById('simple-video-overlay');
+    if (existingOverlay) {
+        existingOverlay.remove();
+    }
+
+    // Crea overlay semplice
+    const overlay = document.createElement('div');
+    overlay.id = 'simple-video-overlay';
+    overlay.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 10000;
+        background: rgba(0,0,0,0.9);
+        padding: 20px;
+        border-radius: 10px;
+        border: 3px solid #ff6b35;
+        box-shadow: 0 0 20px rgba(255, 107, 53, 0.5);
+    `;
+
+    // Crea elemento player
+    const playerDiv = document.createElement('div');
+    playerDiv.id = 'simple-youtube-player';
+    playerDiv.style.width = '800px';
+    playerDiv.style.height = '450px';
+    playerDiv.style.backgroundColor = '#000';
+
+    // Pulsante chiudi
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '❌ Chiudi';
+    closeBtn.style.cssText = `
+        position: absolute;
+        top: -10px;
+        right: -10px;
+        background: #ff6b35;
+        color: white;
+        border: none;
+        padding: 10px;
+        border-radius: 50%;
+        cursor: pointer;
+    `;
+    closeBtn.onclick = () => {
+        overlay.remove();
+        if (window.simpleYoutubePlayer) {
+            window.simpleYoutubePlayer.destroy();
+            window.simpleYoutubePlayer = null;
+        }
+    };
+
+    overlay.appendChild(closeBtn);
+    overlay.appendChild(playerDiv);
+    document.body.appendChild(overlay);
+
+    window.debugLogger.log('🧪 Overlay video semplice creato per test');
+
+    // Inizializza player YouTube semplice
+    setTimeout(() => {
+        try {
+            window.simpleYoutubePlayer = new YT.Player('simple-youtube-player', {
+                height: '450',
+                width: '800',
+                videoId: videoId,
+                playerVars: {
+                    'autoplay': 1,
+                    'controls': 1,
+                    'rel': 0
+                },
+                events: {
+                    'onReady': (event) => {
+                        window.debugLogger.log('🎉 Player semplice pronto!');
+                        event.target.playVideo();
+                    },
+                    'onStateChange': (event) => {
+                        window.debugLogger.log('📺 Stato player semplice:', event.data);
+                    },
+                    'onError': (event) => {
+                        window.debugLogger.log('❌ Errore player semplice:', event.data);
+                    }
+                }
+            });
+        } catch (error) {
+            window.debugLogger.log('❌ Errore creazione player semplice:', error.message);
+        }
+    }, 100);
+}
+
+// Esponi la funzione per test manuali
+window.createSimpleVideoOverlay = createSimpleVideoOverlay;
+
+/**
  * Funzione principale di inizializzazione
  */
 function init() {
@@ -1531,7 +2490,6 @@ function init() {
     
     // Carica i modelli
     loadClassroom();
-    loadProvettaModel();
     
     // Configura gli eventi del mouse
     setupMouseEvents();

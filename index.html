@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Simulazione Educativa VR - Three.js</title>
     <link rel="stylesheet" href="style.css">
+    <!-- YouTube Player API -->
+    <script src="https://www.youtube.com/iframe_api"></script>
 </head>
 <body>
     <div id="container">
@@ -15,7 +17,6 @@
         <div id="ui-panel">
             <h1>Simulazione Educativa VR</h1>
             <button id="start-button">Inizia Esplorazione</button>
-            <button id="add-provetta-btn">Aggiungi Provetta</button>
             <div id="loading-message">Caricamento modelli...</div>
             <div id="user-info" style="display: none;">
                 <p>Benvenuto, <span id="user-name"></span>!</p>
@@ -38,6 +39,7 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS3DRenderer.js"></script>
     
     <!-- Script del logger e database -->
     <script src="src/logger.js"></script>
