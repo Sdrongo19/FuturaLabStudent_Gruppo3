@@ -3354,6 +3354,12 @@ async function finishSimulation() {
     // Ferma il controllo periodico se attivo
     stopSimulationMonitoring();
     
+    // Disabilita i controlli FPS per permettere l'interazione con il banner
+    if (fpControls && fpControls.isLocked) {
+        fpControls.unlock();
+        window.debugLogger.log('🔓 Controlli FPS disabilitati per banner valutazione');
+    }
+    
     // Mostra il banner di valutazione
     // NOTA: setStudentSimulationFinished() ora è chiamato dal pulsante prima di questa funzione
     showRatingBanner();
@@ -3742,6 +3748,12 @@ function returnToMainPage() {
     
     // Ferma il monitoraggio se attivo
     stopSimulationMonitoring();
+    
+    // Riabilita i controlli FPS se erano disabilitati
+    if (fpControls && !fpControls.isLocked) {
+        fpControls.lock();
+        window.debugLogger.log('🔒 Controlli FPS riabilitati per tornare alla pagina principale');
+    }
     
     // Reindirizza a localhost:8000 per ripartire da capo
     window.location.href = 'http://localhost:8000';
