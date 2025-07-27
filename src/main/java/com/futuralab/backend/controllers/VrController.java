@@ -181,4 +181,19 @@ public class VrController {
         }
     }
 
+    @PostMapping("/setVotoSimulazioneStudente")
+    public boolean setVotoSimulazioneStudente(@RequestBody Map<String, Object> request) {
+        String query = "INSERT INTO valutazione_simulazione (id_studente, id_simulazione, voto) VALUES (?, ?, ?)";
+
+        try (Connection conn = DatabaseConfig.getConnection(); PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setInt(1, (Integer) request.get("idStudente"));
+            stmt.setInt(2, (Integer) request.get("idSimulazione"));
+            stmt.setInt(3, (Integer) request.get("voto"));
+            stmt.executeUpdate();
+            return true;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
 }

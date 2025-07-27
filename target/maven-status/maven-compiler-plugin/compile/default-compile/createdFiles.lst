@@ -1,6 +1,7 @@
 com\futuralab\backend\models\LoginResponse.class
 com\futuralab\backend\models\SimulazioneStudenti.class
 com\futuralab\backend\models\SimulazioneInsegnante.class
+com\futuralab\backend\models\SimulazioneResponse.class
 com\futuralab\backend\models\LoginResponseStudente.class
 com\futuralab\backend\models\SommaVoti.class
 com\futuralab\backend\models\RecentiItem.class
