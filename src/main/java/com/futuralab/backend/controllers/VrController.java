@@ -158,7 +158,7 @@ public class VrController {
                 if (rs.next()) {
                     String statoAttuale = rs.getString("stato");
                     if ("finito".equals(statoAttuale)) {
-                        return "Impossibile passare da 'finito' a 'inCorso'. Lo studente ha già completato la simulazione.";
+                        return "Lo studente ha già completato la simulazione.";
                     }
                 }
             } catch (SQLException e) {

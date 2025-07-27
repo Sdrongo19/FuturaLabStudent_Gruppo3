@@ -17,6 +17,7 @@ let youtubePlayer = null;
 let currentSimulazione = null;
 let currentUser = null;
 let videoPlayerReady = false;
+let simulationMonitoringInterval = null;
 
 // Variabili per i controlli FPS
 let moveForward = false;
@@ -554,18 +555,73 @@ function onMouseClick(event) {
     // Combina i risultati
     const allIntersects = [...intersects, ...css3dIntersects];
     
-    window.debugLogger.log('Oggetti intersecati', {
+    window.debugLogger.log('🎯 Oggetti intersecati dettagliato', {
         scena3D: intersects.length,
         scenaCSS3D: css3dIntersects.length,
-        totale: allIntersects.length
+        totale: allIntersects.length,
+        modalitaFPS: fpControls && fpControls.isLocked,
+        mousePos: {x: mouse.x, y: mouse.y},
+        intersectsDetails: allIntersects.map(hit => ({
+            type: hit.object.userData?.type || 'unknown',
+            distance: hit.distance,
+            point: hit.point
+        }))
     });
     
     if (allIntersects.length > 0) {
-        const clickedObject = allIntersects[0].object;
-        window.debugLogger.log('Oggetto cliccato', {nome: clickedObject.name, userData: clickedObject.userData});
+        // DEBUG: Mostra tutti gli oggetti intersecati
+        window.debugLogger.log('🎯 CLICK DEBUG - Tutti gli oggetti intersecati:', allIntersects.map((hit, index) => ({
+            index: index,
+            type: hit.object.userData?.type || 'no-type',
+            distance: hit.distance,
+            isFirst: index === 0
+        })));
         
+        // Cerca prima il pulsante Termina Esercizio tra tutti gli intersetti
+        const buttonHit = allIntersects.find(hit => 
+            hit.object.userData && hit.object.userData.type === 'terminaEsercizioBtn'
+        );
+        
+        // Cerca il pannello video tra tutti gli intersetti
+        const videoHit = allIntersects.find(hit => 
+            hit.object.userData && hit.object.userData.type === 'videoPanel'
+        );
+        
+        // PRIORITÀ: prima pulsante, poi video
+        if (buttonHit) {
+            const clickedObject = buttonHit.object;
+            window.debugLogger.log('🎯 CLICK DEBUG - Pulsante rilevato:', {
+                nome: clickedObject.name, 
+                userData: clickedObject.userData,
+                distance: buttonHit.distance
+            });
+            
+            window.debugLogger.log('🏁 Click su pulsante Termina Esercizio via raycaster');
+            
+            // Simula il click sul pulsante CSS3D
+            if (videoPanel && videoPanel.userData.terminaBtn) {
+                const terminaBtn = videoPanel.userData.terminaBtn;
+                window.debugLogger.log('✅ Triggering click su pulsante Termina Esercizio');
+                
+                // In modalità FPS, esci automaticamente dal pointer lock
+                if (fpControls && fpControls.isLocked) {
+                    window.debugLogger.log('🔓 Uscita automatica da modalità FPS per valutazione');
+                    fpControls.unlock();
+                }
+                
+                terminaBtn.click();
+            } else {
+                window.debugLogger.log('❌ Pulsante Termina Esercizio non trovato nel videoPanel');
+            }
+        }
         // Controlla se è il pannello video
-        if (clickedObject.userData && clickedObject.userData.type === 'videoPanel') {
+        else if (videoHit) {
+            const clickedObject = videoHit.object;
+            window.debugLogger.log('🎯 CLICK DEBUG - Video rilevato:', {
+                nome: clickedObject.name, 
+                userData: clickedObject.userData,
+                distance: videoHit.distance
+            });
             window.debugLogger.log('🎮 Click su pannello video 3D via raycaster');
             
             // Se è il piano di raycasting, usa il videoPanel globale
@@ -577,7 +633,48 @@ function onMouseClick(event) {
             } else {
                 handleVideoInteractionCSS3D(clickedObject);
             }
-        } else {
+        }
+        // FALLBACK: Se siamo in FPS e non abbiamo trovato il pulsante, prova metodi alternativi
+        else if (fpControls && fpControls.isLocked) {
+            window.debugLogger.log('🔍 FALLBACK FPS: Tentativo click diretto su pulsante');
+            
+            // Prova a cliccare direttamente il pulsante se è visibile e nella giusta area
+            if (videoPanel && videoPanel.userData.terminaBtn) {
+                const terminaBtn = videoPanel.userData.terminaBtn;
+                const buttonRect = terminaBtn.getBoundingClientRect();
+                const centerX = window.innerWidth / 2;
+                const centerY = window.innerHeight / 2;
+                
+                window.debugLogger.log('🔍 FALLBACK - Check area pulsante:', {
+                    centerScreen: { x: centerX, y: centerY },
+                    buttonRect: {
+                        left: buttonRect.left,
+                        right: buttonRect.right,
+                        top: buttonRect.top,
+                        bottom: buttonRect.bottom
+                    },
+                    isInArea: (centerX >= buttonRect.left && centerX <= buttonRect.right &&
+                              centerY >= buttonRect.top && centerY <= buttonRect.bottom)
+                });
+                
+                                if (centerX >= buttonRect.left && centerX <= buttonRect.right &&
+                    centerY >= buttonRect.top && centerY <= buttonRect.bottom) {
+                    window.debugLogger.log('✅ FALLBACK: Click su area pulsante rilevato');
+                    
+                    // In modalità FPS, esci automaticamente dal pointer lock
+                    if (fpControls && fpControls.isLocked) {
+                        window.debugLogger.log('🔓 FALLBACK: Uscita automatica da modalità FPS per valutazione');
+                        fpControls.unlock();
+                    }
+                    
+                    terminaBtn.click();
+                    return;
+                } else {
+                    window.debugLogger.log('❌ FALLBACK: Crosshair non sopra il pulsante');
+                }
+            }
+        }
+        else {
             window.debugLogger.log('Click su oggetto non interattivo');
         }
     } else {
@@ -612,8 +709,11 @@ function onMouseMove(event) {
     if (intersects.length > 0) {
         const hoveredObject = intersects[0].object;
         
-        // Controlla se stiamo hovering sul pannello video
-        if (hoveredObject.userData && hoveredObject.userData.type === 'videoPanel') {
+        // Controlla se stiamo hovering su oggetti interattivi
+        if (hoveredObject.userData && (
+            hoveredObject.userData.type === 'videoPanel' || 
+            hoveredObject.userData.type === 'terminaEsercizioBtn'
+        )) {
             isHoveringInteractive = true;
         }
     }
@@ -1095,6 +1195,9 @@ async function avviaSimulazione(user, simulazione) {
             currentUser = user;
             currentSimulazione = simulazione;
             
+            // Avvia il monitoraggio periodico della simulazione
+            startSimulationMonitoring();
+            
             // Gestisci in base al tipo di simulazione
             if (simulazione.tipoSimulazione === 1) {
                 // È un video - avvia il sistema video
@@ -1162,10 +1265,15 @@ function createVideoPanel(videoUrl) {
         css3dScene.remove(videoPanel);
         }
         
-        // Rimuovi anche il piano di raycasting se esiste
+        // Rimuovi anche i piani di raycasting se esistono
         if (videoPanel.userData && videoPanel.userData.raycastPlane) {
             scene.remove(videoPanel.userData.raycastPlane);
             window.debugLogger.log('Piano raycasting video rimosso');
+        }
+        
+        if (videoPanel.userData && videoPanel.userData.buttonRaycastPlane) {
+            scene.remove(videoPanel.userData.buttonRaycastPlane);
+            window.debugLogger.log('Piano raycasting pulsante rimosso');
         }
         
         // Pulisci elementi DOM precedenti
@@ -1192,13 +1300,13 @@ function createVideoPanel(videoUrl) {
     containerDiv.className = 'youtube-video-element';
     containerDiv.style.cssText = `
         width: 800px;
-        height: 450px;
+        height: 520px;
         background: #000;
         border: 3px solid #ff6b35;
         border-radius: 10px;
         padding: 5px;
         box-shadow: 0 0 20px rgba(255, 107, 53, 0.5);
-        overflow: hidden;
+        overflow: visible;
         position: relative;
     `;
     
@@ -1386,11 +1494,73 @@ function createVideoPanel(videoUrl) {
     `;
     loadingMsg.innerHTML = '🎬 Caricamento video YouTube...<br>Attendere...';
     
+    // Crea il pulsante Termina Esercizio
+    const terminaBtn = document.createElement('button');
+    terminaBtn.id = 'termina-esercizio-btn';
+    terminaBtn.innerHTML = '🏁 Termina Esercizio';
+    terminaBtn.style.cssText = `
+        position: absolute;
+        bottom: -60px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: linear-gradient(45deg, #e74c3c, #c0392b);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
+        transition: all 0.3s ease;
+        z-index: 20;
+        pointer-events: auto;
+    `;
+    
+    // Hover effects per il pulsante
+    terminaBtn.addEventListener('mouseenter', () => {
+        terminaBtn.style.transform = 'translateX(-50%) scale(1.05)';
+        terminaBtn.style.boxShadow = '0 6px 20px rgba(231, 76, 60, 0.5)';
+    });
+    
+    terminaBtn.addEventListener('mouseleave', () => {
+        terminaBtn.style.transform = 'translateX(-50%) scale(1)';
+        terminaBtn.style.boxShadow = '0 4px 15px rgba(231, 76, 60, 0.3)';
+    });
+    
+    // Event listener per il click
+    terminaBtn.addEventListener('click', async () => {
+        window.debugLogger.log('🏁 Pulsante Termina Esercizio cliccato');
+        
+        // Disabilita il pulsante durante l'operazione
+        terminaBtn.disabled = true;
+        terminaBtn.innerHTML = '⏳ Terminando...';
+        terminaBtn.style.opacity = '0.7';
+        
+        try {
+            // Chiama setStatoSimulazioneStudente con stato "finito"
+            await setStudentSimulationFinished();
+            
+            // Chiama finishSimulation per mostrare il banner di valutazione
+            finishSimulation();
+            
+        } catch (error) {
+            window.debugLogger.log('❌ Errore nel terminare esercizio', error.message);
+            alert('Errore nel terminare l\'esercizio. Riprova.');
+            
+            // Riabilita il pulsante in caso di errore
+            terminaBtn.disabled = false;
+            terminaBtn.innerHTML = '🏁 Termina Esercizio';
+            terminaBtn.style.opacity = '1';
+        }
+    });
+    
     // Assembla il contenitore
     containerDiv.appendChild(loadingMsg);
     containerDiv.appendChild(iframe);
     containerDiv.appendChild(hoverArea);
     containerDiv.appendChild(controlsOverlay);
+    containerDiv.appendChild(terminaBtn);
     
     // Crea l'oggetto CSS3D
     const css3dObject = new THREE.CSS3DObject(containerDiv);
@@ -1400,7 +1570,7 @@ function createVideoPanel(videoUrl) {
     css3dObject.rotation.y = Math.PI / 2; // 90° = rotazione verso sinistra (non specchiato)
     css3dObject.scale.set(0.025, 0.025, 0.025);
     
-    // Crea un piano invisibile per il raycasting (stesso size e posizione del CSS3D)
+    // Crea un piano invisibile per il raycasting del video (stesso size e posizione del CSS3D)
     const raycastGeometry = new THREE.PlaneGeometry(16, 9); // Dimensioni simili al video
     const raycastMaterial = new THREE.MeshBasicMaterial({
         transparent: true,
@@ -1416,8 +1586,41 @@ function createVideoPanel(videoUrl) {
         videoId: videoId 
     };
     
-    // Aggiungi il piano invisibile alla scena principale per il raycasting
+    // Crea un piano invisibile per il pulsante "Termina Esercizio"
+    // Pulsante CSS: ~200px x 48px, con scala 0.025 = ~5 x 1.2 unità nel mondo 3D
+    const buttonRaycastGeometry = new THREE.PlaneGeometry(5, 1.2); // Dimensioni del pulsante
+    const buttonRaycastMaterial = new THREE.MeshBasicMaterial({
+        transparent: true,
+        opacity: 0.0, // Invisibile
+        color: 0xff0000,
+        side: THREE.DoubleSide
+    });
+    const buttonRaycastPlane = new THREE.Mesh(buttonRaycastGeometry, buttonRaycastMaterial);
+    
+    // Posiziona il piano del pulsante sotto il video
+    // Il container CSS3D ha scala 0.025, quindi il pulsante è a circa -60px = -1.5 unità nel mondo 3D
+    buttonRaycastPlane.position.copy(css3dObject.position);
+    buttonRaycastPlane.position.y -= 1.5; // Aggiustato per la posizione reale del pulsante (-60px * 0.025)
+    buttonRaycastPlane.rotation.copy(css3dObject.rotation);
+    buttonRaycastPlane.userData = { 
+        type: 'terminaEsercizioBtn', 
+        isRaycastPlane: true,
+        videoId: videoId 
+    };
+    
+    // Aggiungi entrambi i piani invisibili alla scena principale per il raycasting
     scene.add(raycastPlane);
+    scene.add(buttonRaycastPlane);
+    
+    // DEBUG: Log delle posizioni
+    window.debugLogger.log('🎮 Piani raycasting creati', {
+        videoPanelPos: css3dObject.position,
+        videoPlanePos: raycastPlane.position,
+        buttonPlanePos: buttonRaycastPlane.position,
+        buttonPlaneDimensions: {width: 5, height: 1.2},
+        videoPlaneUserData: raycastPlane.userData,
+        buttonPlaneUserData: buttonRaycastPlane.userData
+    });
     
     // Salva il riferimento
     videoPanel = css3dObject;
@@ -1430,6 +1633,8 @@ function createVideoPanel(videoUrl) {
         playPauseBtn: playPauseBtn,
         statusIndicator: statusIndicator,
         raycastPlane: raycastPlane,
+        buttonRaycastPlane: buttonRaycastPlane,
+        terminaBtn: terminaBtn,
         isPlaying: true
     };
     
@@ -2272,7 +2477,7 @@ function initYouTubePlayer(videoId) {
         // Se il video è finito (stato 0)
         if (event.data === YT.PlayerState.ENDED) {
             window.debugLogger.log('🏁 Video terminato');
-            finishSimulation();
+            // Rimosso finishSimulation() automatico - ora gestito dal pulsante manuale
         }
         
         // Se c'è un errore di buffering prolungato
@@ -2640,6 +2845,133 @@ function safeDebugLog(message, data) {
 }
 
 /**
+ * Testa il rilevamento del pulsante Termina Esercizio
+ */
+window.testButtonDetection = function() {
+    if (!videoPanel || !videoPanel.userData) {
+        window.debugLogger.log('❌ Nessun video attivo per testare il pulsante');
+        return;
+    }
+    
+    window.debugLogger.log('🎯 Test rilevamento pulsante Termina Esercizio');
+    
+    const userData = videoPanel.userData;
+    const buttonPlane = userData.buttonRaycastPlane;
+    
+    window.debugLogger.log('🔍 Elementi per il pulsante:', {
+        buttonRaycastPlane: !!buttonPlane,
+        terminaBtn: !!userData.terminaBtn,
+        buttonPosition: buttonPlane ? buttonPlane.position : 'N/A',
+        buttonInScene: buttonPlane ? scene.children.includes(buttonPlane) : false,
+        totalObjectsInScene: scene.children.length,
+        buttonDisabled: userData.terminaBtn ? userData.terminaBtn.disabled : 'N/A',
+        buttonVisible: userData.terminaBtn ? getComputedStyle(userData.terminaBtn).display !== 'none' : 'N/A'
+    });
+    
+    if (buttonPlane) {
+        // Test raycasting manuale verso il pulsante
+        const direction = new THREE.Vector3();
+        direction.subVectors(buttonPlane.position, camera.position).normalize();
+        
+        raycaster.set(camera.position, direction);
+        const intersects = raycaster.intersectObject(buttonPlane);
+        
+        window.debugLogger.log('🎯 Test raycasting diretto al pulsante:', {
+            intersects: intersects.length,
+            buttonVisible: buttonPlane.visible,
+            distance: intersects.length > 0 ? intersects[0].distance : 'N/A'
+        });
+        
+        // Lista tutti gli oggetti nella scena con userData.type
+        const typedObjects = scene.children.filter(obj => obj.userData && obj.userData.type);
+        window.debugLogger.log('🗂️ Oggetti tipizzati nella scena:', typedObjects.map(obj => ({
+            type: obj.userData.type,
+            position: obj.position,
+            visible: obj.visible
+        })));
+    }
+};
+
+/**
+ * Test manuale del click sul pulsante Termina Esercizio
+ */
+window.testButtonClick = function() {
+    if (!videoPanel || !videoPanel.userData || !videoPanel.userData.terminaBtn) {
+        window.debugLogger.log('❌ Pulsante non disponibile per il test');
+        return;
+    }
+    
+    const terminaBtn = videoPanel.userData.terminaBtn;
+    window.debugLogger.log('🧪 Test manuale click pulsante', {
+        disabled: terminaBtn.disabled,
+        visible: getComputedStyle(terminaBtn).display !== 'none',
+        inDOM: document.contains(terminaBtn)
+    });
+    
+    try {
+        terminaBtn.click();
+        window.debugLogger.log('✅ Click manuale eseguito');
+    } catch (error) {
+        window.debugLogger.log('❌ Errore nel click manuale', error.message);
+    }
+};
+
+/**
+ * Test specifico per modalità FPS - simula un click dal centro schermo
+ */
+window.testFPSClick = function() {
+    if (!videoPanel || !videoPanel.userData) {
+        window.debugLogger.log('❌ Video non disponibile per test FPS');
+        return;
+    }
+    
+    window.debugLogger.log('🎯 TEST FPS - Simulazione click dal centro schermo');
+    
+    // Simula modalità FPS: raycaster dal centro (0,0)
+    const mouse = { x: 0, y: 0 };
+    raycaster.setFromCamera(mouse, camera);
+    
+    // Testa solo la scena principale (dove sono i piani raycasting)
+    const intersects = raycaster.intersectObjects(scene.children, true);
+    
+    window.debugLogger.log('🎯 TEST FPS - Intersects dal centro:', {
+        totalIntersects: intersects.length,
+        details: intersects.map((hit, index) => ({
+            index: index,
+            type: hit.object.userData?.type || 'no-type',
+            distance: hit.distance,
+            position: hit.point
+        }))
+    });
+    
+    // Cerca specificamente il pulsante
+    const buttonHit = intersects.find(hit => 
+        hit.object.userData && hit.object.userData.type === 'terminaEsercizioBtn'
+    );
+    
+    if (buttonHit) {
+        window.debugLogger.log('✅ TEST FPS - Pulsante trovato!', {
+            distance: buttonHit.distance,
+            point: buttonHit.point
+        });
+    } else {
+        window.debugLogger.log('❌ TEST FPS - Pulsante NON trovato');
+        
+        // Test aggiuntivo: controlla se il piano del pulsante è visibile
+        const buttonPlane = videoPanel.userData.buttonRaycastPlane;
+        if (buttonPlane) {
+            window.debugLogger.log('🔍 TEST FPS - Info piano pulsante:', {
+                position: buttonPlane.position,
+                rotation: buttonPlane.rotation,
+                visible: buttonPlane.visible,
+                inScene: scene.children.includes(buttonPlane),
+                scale: buttonPlane.scale
+            });
+        }
+    }
+};
+
+/**
  * Testa il click corretto sul pannello video
  */
 window.testVideoClickDetection = function() {
@@ -2955,7 +3287,8 @@ function showVideoErrorBanner(errorMessage) {
 }
 
 /**
- * Termina la simulazione settando lo stato a "finito"
+ * Termina la simulazione e mostra il banner di valutazione
+ * Ora chiamata solo dal pulsante "Termina Esercizio"
  */
 async function finishSimulation() {
     if (!currentUser || !currentSimulazione) {
@@ -2963,10 +3296,24 @@ async function finishSimulation() {
         return;
     }
 
+    window.debugLogger.log('🏁 Simulazione terminata, avvio processo di valutazione');
+    
+    // Ferma il controllo periodico se attivo
+    stopSimulationMonitoring();
+    
+    // Mostra il banner di valutazione
+    // NOTA: setStudentSimulationFinished() ora è chiamato dal pulsante prima di questa funzione
+    showRatingBanner();
+}
+
+/**
+ * Imposta lo stato della simulazione dello studente a "finito"
+ */
+async function setStudentSimulationFinished() {
     const API_BASE_URL = 'http://localhost:80/api';
     
     try {
-        window.debugLogger.log('Terminando simulazione', { 
+        window.debugLogger.log('Impostando stato studente a finito', { 
             studente: currentUser.id, 
             simulazione: currentSimulazione.id 
         });
@@ -2989,25 +3336,340 @@ async function finishSimulation() {
         }
 
         const result = await response.text();
-        window.debugLogger.log('Simulazione terminata', result);
-
-        // Pulisci tutto
-        cleanupVideoSystem();
-        
-        // Mostra messaggio di completamento
-        alert('Simulazione completata con successo!');
+        window.debugLogger.log('Stato studente aggiornato', result);
         
     } catch (error) {
-        console.error('Errore nel terminare la simulazione:', error);
-        window.debugLogger.log('Errore nel terminare la simulazione', error.message);
-        alert('Errore nel completare la simulazione');
+        console.error('Errore nel settare stato finito:', error);
+        window.debugLogger.log('Errore nel settare stato finito', error.message);
     }
+}
+
+/**
+ * Avvia il monitoraggio periodico della simulazione
+ */
+function startSimulationMonitoring() {
+    if (simulationMonitoringInterval) {
+        clearInterval(simulationMonitoringInterval);
+    }
+    
+    window.debugLogger.log('🔄 Avvio monitoraggio periodico simulazione');
+    
+    simulationMonitoringInterval = setInterval(async () => {
+        const isStillRunning = await verifySimulazioneInCorso();
+        if (!isStillRunning) {
+            window.debugLogger.log('❌ Simulazione non più attiva - terminazione forzata');
+            finishSimulation();
+        }
+    }, 5000); // Controlla ogni 5 secondi
+}
+
+/**
+ * Ferma il monitoraggio periodico della simulazione
+ */
+function stopSimulationMonitoring() {
+    if (simulationMonitoringInterval) {
+        clearInterval(simulationMonitoringInterval);
+        simulationMonitoringInterval = null;
+        window.debugLogger.log('⏹️ Monitoraggio simulazione fermato');
+    }
+}
+
+/**
+ * Verifica se la simulazione è ancora in corso
+ * @returns {boolean} true se la simulazione è ancora attiva, false altrimenti
+ */
+async function verifySimulazioneInCorso() {
+    if (!currentSimulazione) {
+        return false;
+    }
+    
+    const API_BASE_URL = 'http://localhost:80/api';
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/verifySimulazioneInCorso`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                idSimulazione: currentSimulazione.id
+            })
+        });
+
+        if (!response.ok) {
+            window.debugLogger.log('❌ Errore nella verifica simulazione', response.status);
+            return false;
+        }
+
+        const isRunning = await response.json();
+        window.debugLogger.log('✅ Verifica simulazione completata', isRunning);
+        return isRunning;
+        
+    } catch (error) {
+        console.error('Errore nella verifica simulazione:', error);
+        window.debugLogger.log('❌ Errore verifica simulazione', error.message);
+        return false;
+    }
+}
+
+/**
+ * Mostra il banner di valutazione con emoji
+ */
+function showRatingBanner() {
+    // NON pulire il sistema video qui - sarà fatto quando si nasconde il banner
+    
+    const banner = document.createElement('div');
+    banner.id = 'rating-banner';
+    banner.className = 'login-modal';
+    
+    banner.innerHTML = `
+        <div class="login-modal-content">
+            <div class="login-header">
+                <h2>🎬 Simulazione Completata!</h2>
+                <p>Come valuti questa esperienza?</p>
+            </div>
+            
+            <div class="rating-container" style="margin: 30px 0; text-align: center;">
+                <p style="margin-bottom: 20px; font-weight: bold;">Clicca su una faccina per esprimere il tuo voto:</p>
+                
+                <div class="emoji-rating" style="display: flex; justify-content: center; gap: 30px; margin: 20px 0;">
+                    <div class="emoji-option" data-rating="1" style="cursor: pointer; padding: 15px; border-radius: 10px; transition: all 0.3s ease;">
+                        <div style="font-size: 60px; margin-bottom: 10px;">😢</div>
+                        <div style="font-weight: bold; color: #e74c3c;">Non mi è piaciuto</div>
+                    </div>
+                    
+                    <div class="emoji-option" data-rating="2" style="cursor: pointer; padding: 15px; border-radius: 10px; transition: all 0.3s ease;">
+                        <div style="font-size: 60px; margin-bottom: 10px;">😐</div>
+                        <div style="font-weight: bold; color: #f39c12;">Così così</div>
+                    </div>
+                    
+                    <div class="emoji-option" data-rating="3" style="cursor: pointer; padding: 15px; border-radius: 10px; transition: all 0.3s ease;">
+                        <div style="font-size: 60px; margin-bottom: 10px;">😊</div>
+                        <div style="font-weight: bold; color: #27ae60;">Mi è piaciuto!</div>
+                    </div>
+                </div>
+                
+                <div id="selected-rating" style="margin: 20px 0; font-size: 18px; font-weight: bold; color: #3498db; display: none;">
+                    Voto selezionato: <span id="rating-text"></span>
+                </div>
+            </div>
+            
+            <div class="rating-buttons" style="display: flex; gap: 15px; justify-content: center;">
+                <button id="confirm-rating-btn" class="login-button" disabled style="opacity: 0.5;">
+                    <span class="login-text">Conferma Voto</span>
+                    <span class="login-loading" style="display: none;">Invio in corso...</span>
+                </button>
+                
+                <button id="skip-rating-btn" class="login-button" style="background: #95a5a6;">
+                    Salta Valutazione
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(banner);
+    window.debugLogger.log('🌟 Banner valutazione mostrato');
+    
+    let selectedRating = null;
+    
+    // Event listeners per le emoji
+    const emojiOptions = document.querySelectorAll('.emoji-option');
+    emojiOptions.forEach(option => {
+        option.addEventListener('click', () => {
+            // Rimuovi selezione precedente
+            emojiOptions.forEach(opt => {
+                opt.style.background = 'transparent';
+                opt.style.transform = 'scale(1)';
+            });
+            
+            // Seleziona l'opzione corrente
+            option.style.background = 'rgba(52, 152, 219, 0.2)';
+            option.style.transform = 'scale(1.1)';
+            
+            selectedRating = parseInt(option.dataset.rating);
+            
+            // Mostra il voto selezionato
+            const ratingTexts = {
+                1: '😢 Non mi è piaciuto',
+                2: '😐 Così così',
+                3: '😊 Mi è piaciuto!'
+            };
+            
+            document.getElementById('selected-rating').style.display = 'block';
+            document.getElementById('rating-text').textContent = ratingTexts[selectedRating];
+            
+            // Abilita il pulsante conferma
+            const confirmBtn = document.getElementById('confirm-rating-btn');
+            confirmBtn.disabled = false;
+            confirmBtn.style.opacity = '1';
+            
+            window.debugLogger.log('⭐ Voto selezionato', selectedRating);
+        });
+        
+        // Hover effects
+        option.addEventListener('mouseenter', () => {
+            if (!option.style.background.includes('rgba(52, 152, 219')) {
+                option.style.background = 'rgba(255, 255, 255, 0.1)';
+                option.style.transform = 'scale(1.05)';
+            }
+        });
+        
+        option.addEventListener('mouseleave', () => {
+            if (!option.style.background.includes('rgba(52, 152, 219')) {
+                option.style.background = 'transparent';
+                option.style.transform = 'scale(1)';
+            }
+        });
+    });
+    
+    // Event listener per conferma voto
+    document.getElementById('confirm-rating-btn').addEventListener('click', () => {
+        window.debugLogger.log('🔘 Pulsante Conferma Voto cliccato', selectedRating);
+        if (selectedRating) {
+            window.debugLogger.log('✅ Voto presente, chiamata submitRating');
+            submitRating(selectedRating);
+        } else {
+            window.debugLogger.log('❌ Nessun voto selezionato');
+            alert('Seleziona prima una faccina per esprimere il tuo voto!');
+        }
+    });
+    
+    // Event listener per saltare valutazione
+    document.getElementById('skip-rating-btn').addEventListener('click', () => {
+        window.debugLogger.log('⏭️ Valutazione saltata dall\'utente');
+        hideRatingBanner();
+        returnToMainPage();
+    });
+}
+
+/**
+ * Invia il voto al backend
+ * @param {number} rating - Il voto da 1 a 3
+ */
+async function submitRating(rating) {
+    window.debugLogger.log('🚀 submitRating chiamata con voto:', rating);
+    
+    if (!currentUser || !currentSimulazione) {
+        console.error('Dati utente o simulazione mancanti per la valutazione');
+        window.debugLogger.log('❌ Dati mancanti:', { currentUser, currentSimulazione });
+        return;
+    }
+    
+    const API_BASE_URL = 'http://localhost:80/api';
+    const confirmBtn = document.getElementById('confirm-rating-btn');
+    
+    if (!confirmBtn) {
+        window.debugLogger.log('❌ Pulsante conferma non trovato nel DOM');
+        return;
+    }
+    
+    try {
+        // Mostra loading
+        confirmBtn.disabled = true;
+        
+        const loginText = document.querySelector('#confirm-rating-btn .login-text');
+        const loginLoading = document.querySelector('#confirm-rating-btn .login-loading');
+        
+        if (loginText) loginText.style.display = 'none';
+        if (loginLoading) loginLoading.style.display = 'inline';
+        
+        window.debugLogger.log('📤 Invio valutazione', { 
+            studente: currentUser.id, 
+            simulazione: currentSimulazione.id,
+            voto: rating
+        });
+        
+        const response = await fetch(`${API_BASE_URL}/setVotoSimulazioneStudente`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                idStudente: currentUser.id,
+                idSimulazione: currentSimulazione.id,
+                voto: rating
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const success = await response.json();
+        window.debugLogger.log('📬 Risposta valutazione', success);
+
+        if (success === true) {
+            window.debugLogger.log('✅ Valutazione inviata con successo');
+            hideRatingBanner();
+            
+            // Mostra messaggio di successo
+            alert('Grazie per la tua valutazione! 🌟');
+            returnToMainPage();
+        } else {
+            throw new Error('Il server ha restituito false');
+        }
+        
+    } catch (error) {
+        console.error('Errore nell\'invio della valutazione:', error);
+        window.debugLogger.log('❌ Errore invio valutazione', error.message);
+        
+        // Mostra errore e torna alla pagina principale
+        alert(`Errore nell'invio della valutazione: ${error.message}\nVerrai riportato alla pagina principale.`);
+        hideRatingBanner();
+        returnToMainPage();
+        
+    } finally {
+        // Nasconde loading se il banner è ancora visibile
+        if (document.getElementById('confirm-rating-btn')) {
+            confirmBtn.disabled = false;
+            document.querySelector('#confirm-rating-btn .login-text').style.display = 'inline';
+            document.querySelector('#confirm-rating-btn .login-loading').style.display = 'none';
+        }
+    }
+}
+
+/**
+ * Nasconde il banner di valutazione
+ */
+function hideRatingBanner() {
+    const banner = document.getElementById('rating-banner');
+    if (banner) {
+        banner.remove();
+        window.debugLogger.log('🗑️ Banner valutazione rimosso');
+    }
+    
+    // Pulisci il sistema video quando si nasconde il banner
+    cleanupVideoSystem();
+}
+
+/**
+ * Torna alla pagina principale (localhost:8000)
+ */
+function returnToMainPage() {
+    window.debugLogger.log('🏠 Reindirizzamento a localhost:8000');
+    
+    // Reset delle variabili globali
+    currentSimulazione = null;
+    currentUser = null;
+    youtubePlayer = null;
+    videoPlayerReady = false;
+    
+    // Ferma il monitoraggio se attivo
+    stopSimulationMonitoring();
+    
+    // Reindirizza a localhost:8000 per ripartire da capo
+    window.location.href = 'http://localhost:8000';
 }
 
 /**
  * Pulisce il sistema video
  */
 function cleanupVideoSystem() {
+    // Ferma il monitoraggio della simulazione
+    stopSimulationMonitoring();
+    
     // Rimuovi il pannello video dalla scena CSS3D
     if (videoPanel) {
         css3dScene.remove(videoPanel);
