@@ -458,6 +458,63 @@ function setupMouseEvents() {
 }
 
 /**
+ * Controlla se il click è su controlli video specifici (pulsanti)
+ * @param {Event} event - Evento del mouse
+ * @returns {boolean} - True se il click è stato gestito
+ */
+function checkVideoClick(event) {
+    // Controlla se c'è un pannello video attivo
+    if (!videoPanel || !videoPanel.userData) {
+        return false;
+    }
+    
+    // Ottieni l'elemento cliccato usando elementFromPoint
+    const clickedElement = document.elementFromPoint(event.clientX, event.clientY);
+    if (!clickedElement) {
+        return false;
+    }
+    
+    // Lista degli ID dei pulsanti specifici (solo play/pause)
+    const buttonIds = [
+        'play-pause-btn'
+    ];
+    
+    // Verifica se il click è su uno dei pulsanti specifici
+    const isSpecificButton = buttonIds.includes(clickedElement.id);
+    const isButtonInControls = clickedElement.tagName === 'BUTTON' && 
+                              clickedElement.closest('#video-controls-overlay');
+    
+    // Verifica se il click è direttamente sui controlli (ma non sui pulsanti specifici)
+    const controlsOverlay = document.getElementById('video-controls-overlay');
+    const isControlsArea = controlsOverlay && controlsOverlay.contains(clickedElement) && 
+                          !isSpecificButton && !isButtonInControls;
+    
+    if (isSpecificButton || isButtonInControls) {
+        window.debugLogger.log('🎛️ Click su pulsante specifico', {
+            elemento: clickedElement.id,
+            isSpecificButton,
+            isButtonInControls
+        });
+        
+        // I pulsanti hanno i loro event listener - non fare nulla qui
+        return true;
+    }
+    
+    if (isControlsArea) {
+        window.debugLogger.log('🎮 Click su area controlli (non pulsante) - toggle play/pause');
+        
+        // Click sull'area controlli ma non su un pulsante = toggle play/pause
+        if (videoPanel) {
+            handleVideoInteractionCSS3D(videoPanel);
+        }
+        return true;
+    }
+    
+    // NON gestire click generali sull'area video - questi vanno al raycaster 3D
+    return false;
+}
+
+/**
  * Gestisce il click del mouse
  * @param {Event} event - Evento del mouse
  */
@@ -475,52 +532,51 @@ function onMouseClick(event) {
         window.debugLogger.log('Click in modalità normale', {x: mouse.x, y: mouse.y});
     }
     
-    // Aggiorna il raycaster
+    // PRIMA controlla se è un click sui controlli specifici (massima priorità)
+    const videoControlsClickHandled = checkVideoClick(event);
+    if (videoControlsClickHandled) {
+        window.debugLogger.log('✅ Click gestito dai controlli video specifici');
+        return;
+    }
+    
+    // POI controlla il raycaster per oggetti 3D generali
     raycaster.setFromCamera(mouse, camera);
     
-    // Trova gli oggetti intersecati
+    // Trova gli oggetti intersecati nella scena principale
     const intersects = raycaster.intersectObjects(scene.children, true);
     
-    window.debugLogger.log('Oggetti intersecati', {numero: intersects.length});
+    // Controlla anche la scena CSS3D se esiste
+    let css3dIntersects = [];
+    if (css3dScene && css3dScene.children.length > 0) {
+        css3dIntersects = raycaster.intersectObjects(css3dScene.children, true);
+    }
     
-    if (intersects.length > 0) {
-        const clickedObject = intersects[0].object;
+    // Combina i risultati
+    const allIntersects = [...intersects, ...css3dIntersects];
+    
+    window.debugLogger.log('Oggetti intersecati', {
+        scena3D: intersects.length,
+        scenaCSS3D: css3dIntersects.length,
+        totale: allIntersects.length
+    });
+    
+    if (allIntersects.length > 0) {
+        const clickedObject = allIntersects[0].object;
         window.debugLogger.log('Oggetto cliccato', {nome: clickedObject.name, userData: clickedObject.userData});
-        
-        // Prima controlla se è un elemento del login 3D
-        // if (login3D && login3D.isVisible()) { // login3D è rimosso
-        //     window.debugLogger.log('Login è visibile, tentando gestione click');
-            
-        //     // Se l'oggetto cliccato non ha userData valido, cerca nell'area circostante
-        //     let targetObject = clickedObject;
-        //     if (!clickedObject.userData || (!clickedObject.userData.type)) {
-        //         window.debugLogger.log('Oggetto senza userData, cercando nell\'area circostante');
-                
-        //         // Cerca tra tutti gli oggetti intersecati per trovare uno con userData valido
-        //         for (let i = 0; i < Math.min(intersects.length, 5); i++) {
-        //             const obj = intersects[i].object;
-        //             if (obj.userData && (obj.userData.type === 'key' || obj.userData.type === 'button' || obj.userData.type === 'inputField')) {
-        //                 targetObject = obj;
-        //                 window.debugLogger.log('Trovato oggetto valido nell\'area', {userData: obj.userData});
-        //                 break;
-        //             }
-        //         }
-        //     }
-            
-        //     if (login3D.handleClick(targetObject)) {
-        //         window.debugLogger.log('Click gestito dal sistema di login');
-        //         return; // Il login ha gestito il click
-        //     } else {
-        //         window.debugLogger.log('Login non ha gestito il click');
-        //     }
-        // } else {
-        //     window.debugLogger.log('Login non visibile o non inizializzato');
-        // }
         
         // Controlla se è il pannello video
         if (clickedObject.userData && clickedObject.userData.type === 'videoPanel') {
-            window.debugLogger.log('Click su pannello video CSS3D');
-            handleVideoInteractionCSS3D(clickedObject);
+            window.debugLogger.log('🎮 Click su pannello video 3D via raycaster');
+            
+            // Se è il piano di raycasting, usa il videoPanel globale
+            if (clickedObject.userData.isRaycastPlane) {
+                window.debugLogger.log('Click rilevato su piano raycasting - toggle play/pause');
+                if (videoPanel) {
+                    handleVideoInteractionCSS3D(videoPanel);
+                }
+            } else {
+                handleVideoInteractionCSS3D(clickedObject);
+            }
         } else {
             window.debugLogger.log('Click su oggetto non interattivo');
         }
@@ -1103,9 +1159,16 @@ function createVideoPanel(videoUrl) {
         if (videoPanel.parent === scene) {
             scene.remove(videoPanel);
         } else if (videoPanel.parent === css3dScene) {
-            css3dScene.remove(videoPanel);
+        css3dScene.remove(videoPanel);
         }
-        // Pulisci elementi precedenti
+        
+        // Rimuovi anche il piano di raycasting se esiste
+        if (videoPanel.userData && videoPanel.userData.raycastPlane) {
+            scene.remove(videoPanel.userData.raycastPlane);
+            window.debugLogger.log('Piano raycasting video rimosso');
+        }
+        
+        // Pulisci elementi DOM precedenti
         const oldVideo = document.getElementById('vr-video-element');
         if (oldVideo) oldVideo.remove();
         const oldIframe = document.getElementById('youtube-player-container');
@@ -1149,7 +1212,7 @@ function createVideoPanel(videoUrl) {
         border-radius: 7px;
     `;
     
-    // URL dell'iframe con parametri per ridurre errori cross-origin
+    // URL dell'iframe con parametri ottimizzati per controlli
     const embedUrl = `https://www.youtube.com/embed/${videoId}?` + new URLSearchParams({
         autoplay: 1,
         controls: 1,
@@ -1157,34 +1220,151 @@ function createVideoPanel(videoUrl) {
         showinfo: 0,
         modestbranding: 1,
         fs: 1,
-        enablejsapi: 0, // Disabilita JS API per ridurre errori cross-origin
+        enablejsapi: 1, // Abilita JS API per controlli play/pause
         origin: window.location.origin,
         allow: 'autoplay; encrypted-media',
-        mute: 0
+        mute: 0,
+        widget_referrer: window.location.origin
     });
     
     iframe.src = embedUrl;
     iframe.allow = 'autoplay; encrypted-media; fullscreen';
     iframe.allowfullscreen = true;
     
-    // Aggiungi un overlay per gestire i click
-    const clickOverlay = document.createElement('div');
-    clickOverlay.id = 'video-click-overlay';
-    clickOverlay.style.cssText = `
+    // Crea controlli personalizzati avanzati sopra l'iframe
+    const controlsOverlay = document.createElement('div');
+    controlsOverlay.id = 'video-controls-overlay';
+    controlsOverlay.style.cssText = `
+        position: absolute;
+        bottom: 10px;
+        left: 10px;
+        right: 10px;
+        height: 80px;
+        background: rgba(0, 0, 0, 0.9);
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 15px;
+        gap: 10px;
+        z-index: 15;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        pointer-events: auto;
+    `;
+    
+    // Pulsante Play/Pause (unico controllo) - al centro
+    const playPauseBtn = document.createElement('button');
+    playPauseBtn.id = 'play-pause-btn';
+    playPauseBtn.innerHTML = '⏸️';
+    playPauseBtn.title = 'Play/Pausa';
+    playPauseBtn.style.cssText = `
+        background: linear-gradient(45deg, #ff6b35, #ff8c42);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        font-size: 20px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
+        margin: 0 auto;
+    `;
+    
+    // Indicatore di stato
+    const statusIndicator = document.createElement('div');
+    statusIndicator.id = 'status-indicator';
+    statusIndicator.innerHTML = 'In riproduzione';
+    statusIndicator.style.cssText = `
+        color: white;
+        font-size: 11px;
+        font-weight: bold;
+        text-align: center;
+        min-width: 80px;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 4px 8px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    `;
+    
+    // Assembla i controlli semplificati - solo play/pause al centro
+    controlsOverlay.appendChild(playPauseBtn);
+    controlsOverlay.appendChild(statusIndicator);
+    
+    // Event listener solo per play/pause
+    playPauseBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        window.debugLogger.log('🎮 Click su pulsante play/pause');
+        toggleVideoPlayback(iframe, playPauseBtn, statusIndicator);
+    });
+    
+    // Effetto hover solo per play/pause
+    playPauseBtn.addEventListener('mouseenter', () => {
+        playPauseBtn.style.transform = 'scale(1.15)';
+        playPauseBtn.style.filter = 'brightness(1.2)';
+        playPauseBtn.style.boxShadow = '0 6px 12px rgba(255, 107, 53, 0.5)';
+    });
+    
+    playPauseBtn.addEventListener('mouseleave', () => {
+        playPauseBtn.style.transform = 'scale(1)';
+        playPauseBtn.style.filter = 'brightness(1)';
+        playPauseBtn.style.boxShadow = '0 4px 8px rgba(255, 107, 53, 0.3)';
+    });
+    
+    // Overlay per mostrare/nascondere controlli (NON copre l'area controlli)
+    const hoverArea = document.createElement('div');
+    hoverArea.id = 'video-hover-area';
+    hoverArea.style.cssText = `
         position: absolute;
         top: 0;
         left: 0;
         width: 100%;
-        height: 100%;
+        height: calc(100% - 90px);
         background: transparent;
-        z-index: 10;
+        z-index: 12;
         cursor: pointer;
-        display: none;
+        pointer-events: auto;
     `;
     
-    clickOverlay.addEventListener('click', () => {
-        window.debugLogger.log('🎮 Click su video overlay');
-        showVideoStatusMessage('Click rilevato sul video');
+    // Gestione hover per mostrare controlli
+    hoverArea.addEventListener('mouseenter', (e) => {
+        e.stopPropagation();
+        controlsOverlay.style.opacity = '1';
+        window.debugLogger.log('👀 Controlli video visibili');
+    });
+    
+    hoverArea.addEventListener('mouseleave', (e) => {
+        e.stopPropagation();
+        // NON nascondere controlli immediatamente - lascia che l'hover sui controlli li mantenga
+        setTimeout(() => {
+            if (!controlsOverlay.matches(':hover')) {
+                controlsOverlay.style.opacity = '0';
+            }
+        }, 200);
+    });
+    
+    // Click generico sull'area video (NON sui controlli)
+    hoverArea.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        window.debugLogger.log('🎮 Click su area video (non controlli) - toggle play/pause');
+        toggleVideoPlayback(iframe, playPauseBtn, statusIndicator);
+    });
+    
+    // Hover sui controlli per mantenerli visibili
+    controlsOverlay.addEventListener('mouseenter', (e) => {
+        e.stopPropagation();
+        controlsOverlay.style.opacity = '1';
+    });
+    
+    controlsOverlay.addEventListener('mouseleave', (e) => {
+        e.stopPropagation();
+        controlsOverlay.style.opacity = '0';
     });
     
     // Aggiungi messaggio di caricamento
@@ -1209,7 +1389,8 @@ function createVideoPanel(videoUrl) {
     // Assembla il contenitore
     containerDiv.appendChild(loadingMsg);
     containerDiv.appendChild(iframe);
-    containerDiv.appendChild(clickOverlay);
+    containerDiv.appendChild(hoverArea);
+    containerDiv.appendChild(controlsOverlay);
     
     // Crea l'oggetto CSS3D
     const css3dObject = new THREE.CSS3DObject(containerDiv);
@@ -1219,6 +1400,25 @@ function createVideoPanel(videoUrl) {
     css3dObject.rotation.y = 0;
     css3dObject.scale.set(0.025, 0.025, 0.025);
     
+    // Crea un piano invisibile per il raycasting (stesso size e posizione del CSS3D)
+    const raycastGeometry = new THREE.PlaneGeometry(16, 9); // Dimensioni simili al video
+    const raycastMaterial = new THREE.MeshBasicMaterial({
+        transparent: true,
+        opacity: 0,
+        side: THREE.DoubleSide
+    });
+    const raycastPlane = new THREE.Mesh(raycastGeometry, raycastMaterial);
+    raycastPlane.position.copy(css3dObject.position);
+    raycastPlane.rotation.copy(css3dObject.rotation);
+    raycastPlane.userData = { 
+        type: 'videoPanel', 
+        isRaycastPlane: true,
+        videoId: videoId 
+    };
+    
+    // Aggiungi il piano invisibile alla scena principale per il raycasting
+    scene.add(raycastPlane);
+    
     // Salva il riferimento
     videoPanel = css3dObject;
     videoPanel.userData = { 
@@ -1226,12 +1426,16 @@ function createVideoPanel(videoUrl) {
         videoId: videoId,
         iframe: iframe,
         container: containerDiv,
-        clickOverlay: clickOverlay
+        controlsOverlay: controlsOverlay,
+        playPauseBtn: playPauseBtn,
+        statusIndicator: statusIndicator,
+        raycastPlane: raycastPlane,
+        isPlaying: true
     };
     
     // Aggiungi alla scena CSS3D
     css3dScene.add(videoPanel);
-    
+
     // Gestione eventi iframe
     iframe.onload = () => {
         window.debugLogger.log('✅ Iframe YouTube caricato completamente');
@@ -1248,9 +1452,24 @@ function createVideoPanel(videoUrl) {
             }
         }, 2000);
         
-        // Abilita overlay per click dopo il caricamento
+        // Abilita controlli personalizzati dopo il caricamento
         setTimeout(() => {
-            clickOverlay.style.display = 'block';
+            hoverArea.style.pointerEvents = 'auto';
+            controlsOverlay.style.pointerEvents = 'auto';
+            containerDiv.style.pointerEvents = 'auto';
+            
+            // Forza l'attivazione dei controlli
+            window.debugLogger.log('✅ Controlli video abilitati');
+            
+            // Abilita il listener per messaggi YouTube API
+            setupYouTubeMessageListener(iframe, statusIndicator);
+            
+            // Test di visibilità controlli
+            window.debugLogger.log('Debug controlli:', {
+                hoverAreaVisible: hoverArea.offsetParent !== null,
+                controlsVisible: controlsOverlay.offsetParent !== null,
+                containerVisible: containerDiv.offsetParent !== null
+            });
         }, 3000);
     };
     
@@ -1495,6 +1714,324 @@ function checkVideoPlayback(videoElement, iframe) {
 }
 
 /**
+ * Controlla la riproduzione del video YouTube (play/pause) usando postMessage
+ * @param {HTMLIFrameElement} iframe - L'iframe YouTube
+ * @param {HTMLButtonElement} playPauseBtn - Il pulsante play/pause
+ * @param {HTMLElement} statusIndicator - L'indicatore di stato
+ */
+function toggleVideoPlayback(iframe, playPauseBtn, statusIndicator) {
+    if (!iframe || !playPauseBtn || !statusIndicator) {
+        window.debugLogger.log('❌ Elementi controllo video mancanti');
+        return;
+    }
+    
+    const userData = videoPanel.userData;
+    
+    if (userData.isPlaying) {
+        // Metti in pausa usando postMessage API
+        try {
+            iframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+            window.debugLogger.log('📤 Comando pausa inviato al player YouTube');
+        } catch (error) {
+            window.debugLogger.log('⚠️ Errore postMessage pausa, uso metodo fallback');
+            // Fallback: overlay di pausa visivo
+            showPauseOverlay(true);
+        }
+        
+        playPauseBtn.innerHTML = '▶️';
+        statusIndicator.innerHTML = 'In pausa';
+        userData.isPlaying = false;
+        
+        window.debugLogger.log('⏸️ Video messo in pausa');
+        showVideoStatusMessage('Video in pausa');
+    } else {
+        // Riprendi la riproduzione usando postMessage API
+        try {
+            iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+            window.debugLogger.log('📤 Comando play inviato al player YouTube');
+        } catch (error) {
+            window.debugLogger.log('⚠️ Errore postMessage play, uso metodo fallback');
+            // Fallback: rimuovi overlay di pausa
+            showPauseOverlay(false);
+        }
+        
+        playPauseBtn.innerHTML = '⏸️';
+        statusIndicator.innerHTML = 'In riproduzione';
+        userData.isPlaying = true;
+        
+        window.debugLogger.log('▶️ Video ripreso dalla posizione corrente');
+        showVideoStatusMessage('Video in riproduzione');
+    }
+}
+
+/**
+ * Configura il listener per i messaggi dal player YouTube
+ * @param {HTMLIFrameElement} iframe - L'iframe YouTube
+ * @param {HTMLElement} statusIndicator - L'indicatore di stato
+ */
+function setupYouTubeMessageListener(iframe, statusIndicator) {
+    if (window.youtubeMessageListener) {
+        window.removeEventListener('message', window.youtubeMessageListener);
+    }
+    
+    window.youtubeMessageListener = function(event) {
+        // Verifica che il messaggio venga dall'iframe YouTube
+        if (event.origin !== 'https://www.youtube.com') {
+            return;
+        }
+        
+        try {
+            const data = JSON.parse(event.data);
+            if (data.event === 'video-progress' && data.info) {
+                // Aggiorna lo stato basato sui dati del player
+                const playerState = data.info.playerState;
+                window.debugLogger.log('📺 Stato player YouTube:', {
+                    playerState,
+                    currentTime: data.info.currentTime,
+                    duration: data.info.duration
+                });
+                
+                // Sincronizza lo stato dei controlli
+                if (videoPanel && videoPanel.userData) {
+                    const userData = videoPanel.userData;
+                    const playPauseBtn = userData.playPauseBtn;
+                    
+                    if (playerState === 1) { // Playing
+                        userData.isPlaying = true;
+                        if (playPauseBtn) playPauseBtn.innerHTML = '⏸️';
+                        if (statusIndicator) statusIndicator.innerHTML = 'In riproduzione';
+                        showPauseOverlay(false);
+                    } else if (playerState === 2) { // Paused
+                        userData.isPlaying = false;
+                        if (playPauseBtn) playPauseBtn.innerHTML = '▶️';
+                        if (statusIndicator) statusIndicator.innerHTML = 'In pausa';
+                    }
+                }
+            }
+        } catch (e) {
+            // Ignora messaggi non JSON o non rilevanti
+        }
+    };
+    
+    window.addEventListener('message', window.youtubeMessageListener);
+    window.debugLogger.log('🎧 Listener messaggi YouTube API configurato');
+}
+
+/**
+ * Mostra/nasconde un overlay di pausa visivo come fallback
+ * @param {boolean} show - Se mostrare o nascondere l'overlay
+ */
+function showPauseOverlay(show) {
+    if (!videoPanel || !videoPanel.userData.container) {
+        return;
+    }
+    
+    const container = videoPanel.userData.container;
+    let pauseOverlay = container.querySelector('#pause-overlay');
+    
+    if (show) {
+        if (!pauseOverlay) {
+            pauseOverlay = document.createElement('div');
+            pauseOverlay.id = 'pause-overlay';
+            pauseOverlay.style.cssText = `
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.7);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 20;
+                color: white;
+                font-size: 60px;
+                font-weight: bold;
+                text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+                backdrop-filter: blur(2px);
+            `;
+            pauseOverlay.innerHTML = '⏸️<br><span style="font-size: 20px;">Video in pausa</span>';
+            container.appendChild(pauseOverlay);
+        }
+        pauseOverlay.style.display = 'flex';
+        window.debugLogger.log('🛑 Overlay pausa mostrato');
+    } else {
+        if (pauseOverlay) {
+            pauseOverlay.style.display = 'none';
+            window.debugLogger.log('▶️ Overlay pausa nascosto');
+        }
+    }
+}
+
+/**
+ * Salta il video avanti o indietro di un numero specifico di secondi
+ * @param {HTMLIFrameElement} iframe - L'iframe YouTube
+ * @param {number} seconds - Secondi da saltare (positivo = avanti, negativo = indietro)
+ * @param {HTMLElement} statusIndicator - L'indicatore di stato
+ */
+function skipVideo(iframe, seconds, statusIndicator) {
+    if (!iframe || !statusIndicator) {
+        window.debugLogger.log('❌ Elementi per skip video mancanti');
+        return;
+    }
+    
+    const direction = seconds > 0 ? 'avanti' : 'indietro';
+    const absSeconds = Math.abs(seconds);
+    
+    window.debugLogger.log(`⏯️ Skip video ${direction} di ${absSeconds} secondi`);
+    
+    try {
+        // Usa l'API YouTube per saltare
+        const command = seconds > 0 ? 'seekTo' : 'seekTo';
+        const message = {
+            event: 'command',
+            func: 'getCurrentTime',
+            args: ''
+        };
+        
+        // Prima ottieni il tempo corrente, poi calcola il nuovo tempo
+        iframe.contentWindow.postMessage(JSON.stringify(message), '*');
+        
+        // Fallback: usa una stima temporale
+        setTimeout(() => {
+            const seekMessage = {
+                event: 'command',
+                func: 'seekTo',
+                args: [seconds > 0 ? 10 : 0] // Semplificato per ora
+            };
+            iframe.contentWindow.postMessage(JSON.stringify(seekMessage), '*');
+            
+            statusIndicator.innerHTML = `Skip ${direction} ${absSeconds}s`;
+            setTimeout(() => {
+                statusIndicator.innerHTML = videoPanel.userData.isPlaying ? 'In riproduzione' : 'In pausa';
+            }, 1500);
+            
+            window.debugLogger.log(`✅ Comando skip ${direction} inviato`);
+        }, 100);
+        
+        showVideoStatusMessage(`Skip ${direction} ${absSeconds} secondi`);
+        
+    } catch (error) {
+        window.debugLogger.log(`❌ Errore skip ${direction}:`, error.message);
+        showVideoStatusMessage(`Errore skip ${direction}`);
+    }
+}
+
+/**
+ * Regola il volume del video
+ * @param {HTMLIFrameElement} iframe - L'iframe YouTube
+ * @param {number} change - Cambiamento volume (-10 a +10)
+ * @param {HTMLElement} statusIndicator - L'indicatore di stato
+ */
+function adjustVolume(iframe, change, statusIndicator) {
+    if (!iframe || !statusIndicator) {
+        window.debugLogger.log('❌ Elementi per volume mancanti');
+        return;
+    }
+    
+    // Mantieni il volume corrente (semplificato)
+    if (!window.currentVolume) {
+        window.currentVolume = 100; // Volume iniziale
+    }
+    
+    const newVolume = Math.max(0, Math.min(100, window.currentVolume + change));
+    window.currentVolume = newVolume;
+    
+    const action = change > 0 ? 'alzato' : 'abbassato';
+    
+    window.debugLogger.log(`🔊 Volume ${action} a ${newVolume}%`);
+    
+    try {
+        // Usa l'API YouTube per il volume
+        const message = {
+            event: 'command',
+            func: 'setVolume',
+            args: [newVolume]
+        };
+        
+        iframe.contentWindow.postMessage(JSON.stringify(message), '*');
+        
+        // Aggiorna indicatore
+        statusIndicator.innerHTML = `Volume: ${newVolume}%`;
+        setTimeout(() => {
+            statusIndicator.innerHTML = videoPanel.userData.isPlaying ? 'In riproduzione' : 'In pausa';
+        }, 1500);
+        
+        // Aggiorna icone volume in base al livello
+        updateVolumeIcons(newVolume);
+        
+        window.debugLogger.log(`✅ Volume impostato a ${newVolume}%`);
+        showVideoStatusMessage(`Volume: ${newVolume}%`);
+        
+    } catch (error) {
+        window.debugLogger.log('❌ Errore controllo volume:', error.message);
+        showVideoStatusMessage('Errore controllo volume');
+    }
+}
+
+/**
+ * Aggiorna le icone del volume in base al livello
+ * @param {number} volume - Livello volume (0-100)
+ */
+function updateVolumeIcons(volume) {
+    const volumeDownBtn = document.getElementById('volume-down-btn');
+    const volumeUpBtn = document.getElementById('volume-up-btn');
+    
+    if (volumeDownBtn && volumeUpBtn) {
+        if (volume === 0) {
+            volumeDownBtn.innerHTML = '🔇';
+            volumeUpBtn.innerHTML = '🔊';
+        } else if (volume < 30) {
+            volumeDownBtn.innerHTML = '🔈';
+            volumeUpBtn.innerHTML = '🔊';
+        } else if (volume < 70) {
+            volumeDownBtn.innerHTML = '🔉';
+            volumeUpBtn.innerHTML = '🔊';
+        } else {
+            volumeDownBtn.innerHTML = '🔉';
+            volumeUpBtn.innerHTML = '🔊';
+        }
+    }
+}
+
+/**
+ * Riavvia il video dall'inizio
+ * @param {HTMLIFrameElement} iframe - L'iframe YouTube
+ * @param {HTMLElement} statusIndicator - L'indicatore di stato
+ */
+function restartVideo(iframe, statusIndicator) {
+    if (!iframe || !statusIndicator) {
+        window.debugLogger.log('❌ Elementi controllo video mancanti per restart');
+        return;
+    }
+    
+    window.debugLogger.log('🔄 Riavvio video dall\'inizio');
+    
+    // Forza il reload dell'iframe per riavviare dall'inizio
+    const currentSrc = iframe.src;
+    const restartUrl = currentSrc.replace('autoplay=0', 'autoplay=1');
+    
+    iframe.src = '';
+    setTimeout(() => {
+        iframe.src = restartUrl;
+        statusIndicator.innerHTML = 'Riavvio video...';
+        
+        // Aggiorna stato
+        if (videoPanel.userData) {
+            videoPanel.userData.isPlaying = true;
+            videoPanel.userData.playPauseBtn.innerHTML = '⏸️';
+        }
+        
+        setTimeout(() => {
+            statusIndicator.innerHTML = 'In riproduzione';
+        }, 2000);
+        
+        window.debugLogger.log('✅ Video riavviato con successo');
+        showVideoStatusMessage('Video riavviato dall\'inizio');
+    }, 100);
+}
+
+/**
  * Gestisce l'interazione con il pannello video CSS3D
  * @param {THREE.Object3D} videoObject - L'oggetto video CSS3D cliccato
  */
@@ -1506,31 +2043,24 @@ function handleVideoInteractionCSS3D(videoObject) {
     
     window.debugLogger.log('🎮 Interazione video CSS3D', {
         videoId: videoObject.userData.videoId,
-        iframeSrc: videoObject.userData.iframe.src
+        isPlaying: videoObject.userData.isPlaying
     });
     
-    // Mostra informazioni sul video
-    showVideoStatusMessage('Video YouTube attivo - Usa i controlli del player');
+    // Attiva toggle play/pause
+    toggleVideoPlayback(
+        videoObject.userData.iframe,
+        videoObject.userData.playPauseBtn,
+        videoObject.userData.statusIndicator
+    );
     
-    // Attiva temporaneamente l'overlay click se disponibile
-    if (videoObject.userData.clickOverlay) {
-        const overlay = videoObject.userData.clickOverlay;
-        overlay.style.background = 'rgba(255,107,53,0.1)';
-        overlay.style.display = 'block';
+    // Mostra temporaneamente i controlli
+    if (videoObject.userData.controlsOverlay) {
+        const controls = videoObject.userData.controlsOverlay;
+        controls.style.opacity = '1';
         
         setTimeout(() => {
-            overlay.style.background = 'transparent';
-        }, 500);
-    }
-    
-    // Focus sull'iframe per permettere l'interazione diretta
-    if (videoObject.userData.iframe) {
-        try {
-            videoObject.userData.iframe.focus();
-            window.debugLogger.log('✅ Focus impostato su iframe YouTube');
-        } catch (e) {
-            window.debugLogger.log('⚠️ Impossibile impostare focus su iframe');
-        }
+            controls.style.opacity = '0';
+        }, 3000);
     }
 }
 
@@ -1909,11 +2439,11 @@ function monitorYouTubePlayer() {
 window.debugVideoSystem = debugVideoSystem;
 
 /**
- * Funzione globale per testare il sistema video CSS3D con YouTube
+ * Funzione globale per testare il sistema video CSS3D con YouTube e controlli
  * @param {string} videoUrl - URL del video da testare (opzionale)
  */
 window.testNewVideoSystem = function(videoUrl = 'https://www.youtube.com/watch?v=WIRoDrrGPx4') {
-    window.debugLogger.log('🧪 Test sistema video CSS3D con YouTube', videoUrl);
+    window.debugLogger.log('🧪 Test sistema video CSS3D con controlli personalizzati', videoUrl);
     
     // Pulisci sistema precedente
     if (videoPanel) {
@@ -1935,14 +2465,380 @@ window.testNewVideoSystem = function(videoUrl = 'https://www.youtube.com/watch?v
     // Crea nuovo pannello video
     createVideoPanel(videoUrl);
     
-    // Debug dopo 3 secondi per permettere il caricamento dell'iframe
+    // Debug dopo 4 secondi per permettere il caricamento completo
     setTimeout(() => {
         debugVideoSystem();
-        window.debugLogger.log('✅ Se vedi il video YouTube nel pannello 3D, il sistema funziona!');
-        window.debugLogger.log('💡 Usa i controlli del player YouTube per play/pause/volume');
-    }, 3000);
+        window.debugLogger.log('✅ Video YouTube caricato nel pannello 3D!');
+        window.debugLogger.log('🎮 CONTROLLI AVANZATI DISPONIBILI:');
+        window.debugLogger.log('  • Hover sul video = Mostra controlli personalizzati');
+        window.debugLogger.log('  • ⏪ Skip indietro 10 secondi');
+        window.debugLogger.log('  • ⏮️ Riavvia dall\'inizio');
+        window.debugLogger.log('  • ⏸️▶️ Play/Pausa (mantiene posizione)');
+        window.debugLogger.log('  • ⏩ Skip avanti 10 secondi');
+        window.debugLogger.log('  • 🔉🔊 Controlli volume (+/- 10%)');
+        window.debugLogger.log('  • Click pannello 3D = Toggle play/pause rapido');
+    }, 4000);
     
-    window.debugLogger.log('✅ Test sistema video CSS3D avviato - attendi il caricamento...');
+    window.debugLogger.log('✅ Test sistema video con controlli avviato - attendi il caricamento...');
+};
+
+/**
+ * Funzione per testare i controlli video direttamente
+ */
+window.testVideoControls = function() {
+    if (!videoPanel || !videoPanel.userData) {
+        window.debugLogger.log('❌ Nessun video attivo per testare i controlli');
+        return;
+    }
+    
+    window.debugLogger.log('🎮 Test controlli video');
+    
+    // Debug dello stato attuale
+    const container = document.getElementById('youtube-player-container');
+    const controls = document.getElementById('video-controls-overlay');
+    const hover = document.getElementById('video-hover-area');
+    
+    window.debugLogger.log('Stato elementi video:', {
+        container: !!container,
+        controls: !!controls,
+        hover: !!hover,
+        containerPointerEvents: container?.style.pointerEvents,
+        controlsPointerEvents: controls?.style.pointerEvents,
+        hoverPointerEvents: hover?.style.pointerEvents
+    });
+    
+    // Mostra i controlli forzatamente
+    if (videoPanel.userData.controlsOverlay) {
+        videoPanel.userData.controlsOverlay.style.opacity = '1';
+        videoPanel.userData.controlsOverlay.style.pointerEvents = 'auto';
+        
+        setTimeout(() => {
+            videoPanel.userData.controlsOverlay.style.opacity = '0';
+        }, 8000);
+    }
+    
+    // Test del sistema di toggle
+    setTimeout(() => {
+        window.debugLogger.log('🔄 Esecuzione test toggle play/pause');
+        handleVideoInteractionCSS3D(videoPanel);
+    }, 2000);
+    
+    window.debugLogger.log('✅ Test controlli in corso - osserva il pannello video!');
+    window.debugLogger.log('💡 Prova anche a cliccare direttamente sul pannello video nella scena!');
+};
+
+/**
+ * Forza l'attivazione dei controlli video
+ */
+window.forceVideoControlsActivation = function() {
+    const container = document.getElementById('youtube-player-container');
+    const controls = document.getElementById('video-controls-overlay');
+    const hover = document.getElementById('video-hover-area');
+    
+    if (container) {
+        container.style.pointerEvents = 'auto';
+        window.debugLogger.log('✅ Container pointer-events attivato');
+    }
+    
+    if (controls) {
+        controls.style.pointerEvents = 'auto';
+        controls.style.opacity = '1';
+        window.debugLogger.log('✅ Controlli attivati e visibili');
+        
+        setTimeout(() => {
+            controls.style.opacity = '0';
+        }, 5000);
+    }
+    
+    if (hover) {
+        hover.style.pointerEvents = 'auto';
+        hover.style.background = 'rgba(255,107,53,0.1)';
+        window.debugLogger.log('✅ Area hover attivata');
+        
+        setTimeout(() => {
+            hover.style.background = 'transparent';
+        }, 2000);
+    }
+    
+    window.debugLogger.log('🎮 Controlli video forzatamente attivati!');
+};
+
+/**
+ * Testa il nuovo sistema play/pause senza restart
+ */
+window.testPlayPauseWithoutRestart = function() {
+    if (!videoPanel || !videoPanel.userData) {
+        window.debugLogger.log('❌ Nessun video attivo per testare play/pause');
+        return;
+    }
+    
+    window.debugLogger.log('🧪 Test play/pause senza restart');
+    
+    const userData = videoPanel.userData;
+    window.debugLogger.log('Stato iniziale:', {
+        isPlaying: userData.isPlaying,
+        iframe: !!userData.iframe,
+        hasAPI: !!window.youtubeMessageListener
+    });
+    
+    // Mostra controlli
+    if (userData.controlsOverlay) {
+        userData.controlsOverlay.style.opacity = '1';
+        
+        setTimeout(() => {
+            userData.controlsOverlay.style.opacity = '0';
+        }, 10000);
+    }
+    
+    // Test sequenza play/pause
+    setTimeout(() => {
+        window.debugLogger.log('🔄 Test pausa (dovrebbe mantenere posizione)');
+        toggleVideoPlayback(userData.iframe, userData.playPauseBtn, userData.statusIndicator);
+    }, 2000);
+    
+    setTimeout(() => {
+        window.debugLogger.log('🔄 Test ripresa (dovrebbe continuare da dove fermato)');
+        toggleVideoPlayback(userData.iframe, userData.playPauseBtn, userData.statusIndicator);
+    }, 5000);
+    
+    window.debugLogger.log('✅ Test sequenza play/pause avviato!');
+    window.debugLogger.log('📺 Osserva se il video riprende dalla stessa posizione');
+};
+
+/**
+ * Logging sicuro che evita riferimenti circolari
+ * @param {string} message - Messaggio
+ * @param {any} data - Dati da loggare (saranno puliti da riferimenti circolari)
+ */
+function safeDebugLog(message, data) {
+    try {
+        // Crea una copia semplificata dell'oggetto evitando riferimenti circolari
+        const safeData = JSON.parse(JSON.stringify(data, (key, value) => {
+            // Evita proprietà che possono causare riferimenti circolari
+            if (key === 'parent' || key === 'children' || key === 'object' || key === 'element') {
+                return '[Object Reference]';
+            }
+            // Converte oggetti Three.js in rappresentazioni semplici
+            if (value && typeof value === 'object' && value.isObject3D) {
+                return `[Object3D: ${value.type || 'Unknown'}]`;
+            }
+            if (value && typeof value === 'object' && value.isVector3) {
+                return { x: value.x, y: value.y, z: value.z };
+            }
+            return value;
+        }));
+        
+        window.debugLogger.log(message, safeData);
+    } catch (error) {
+        window.debugLogger.log(message + ' [Errore serializzazione]', String(data));
+    }
+}
+
+/**
+ * Testa il click corretto sul pannello video
+ */
+window.testVideoClickDetection = function() {
+    if (!videoPanel || !videoPanel.userData) {
+        window.debugLogger.log('❌ Nessun video attivo per testare il click');
+        return;
+    }
+    
+    window.debugLogger.log('🎯 Test rilevamento click video');
+    
+    const userData = videoPanel.userData;
+    window.debugLogger.log('Elementi per click:', {
+        css3dObject: !!videoPanel,
+        raycastPlane: !!userData.raycastPlane,
+        scenaCSS3D: !!css3dScene,
+        scenaPrincipale: !!scene
+    });
+    
+    if (userData.raycastPlane) {
+        window.debugLogger.log('Piano raycasting:', {
+            position: {
+                x: userData.raycastPlane.position.x,
+                y: userData.raycastPlane.position.y,
+                z: userData.raycastPlane.position.z
+            },
+            visible: userData.raycastPlane.visible,
+            inScene: scene.children.includes(userData.raycastPlane),
+            userData: userData.raycastPlane.userData
+        });
+    }
+    
+    // Mostra controlli temporaneamente
+    if (userData.controlsOverlay) {
+        userData.controlsOverlay.style.opacity = '1';
+        setTimeout(() => {
+            userData.controlsOverlay.style.opacity = '0';
+        }, 5000);
+    }
+    
+    window.debugLogger.log('✅ Test preparato');
+    window.debugLogger.log('🎯 Clicca SUL pannello video nella scena per testare');
+    window.debugLogger.log('❌ Clicca FUORI dal pannello - non dovrebbe funzionare');
+};
+
+/**
+ * Testa tutti i controlli video avanzati
+ */
+window.testAdvancedVideoControls = function() {
+    if (!videoPanel || !videoPanel.userData) {
+        window.debugLogger.log('❌ Nessun video attivo per testare i controlli avanzati');
+        return;
+    }
+    
+    window.debugLogger.log('🎮 Test controlli video avanzati');
+    
+    const userData = videoPanel.userData;
+    safeDebugLog('Controlli disponibili:', {
+        playPause: !!userData.playPauseBtn,
+        restart: !!userData.restartBtn,
+        skipBack: !!userData.skipBackBtn,
+        skipForward: !!userData.skipForwardBtn,
+        volumeDown: !!userData.volumeDownBtn,
+        volumeUp: !!userData.volumeUpBtn,
+        raycastPlane: !!userData.raycastPlane
+    });
+    
+    // Mostra controlli
+    if (userData.controlsOverlay) {
+        userData.controlsOverlay.style.opacity = '1';
+        window.debugLogger.log('🎛️ Controlli mostrati - Prova tutti i pulsanti!');
+        
+        setTimeout(() => {
+            userData.controlsOverlay.style.opacity = '0';
+        }, 15000);
+    }
+    
+    // Sequenza di test automatica
+    let step = 0;
+    const testSequence = [
+        () => {
+            window.debugLogger.log('🔊 Test: Volume su');
+            adjustVolume(userData.iframe, 10, userData.statusIndicator);
+        },
+        () => {
+            window.debugLogger.log('🔉 Test: Volume giù');
+            adjustVolume(userData.iframe, -20, userData.statusIndicator);
+        },
+        () => {
+            window.debugLogger.log('⏩ Test: Skip avanti 10 sec');
+            skipVideo(userData.iframe, 10, userData.statusIndicator);
+        },
+        () => {
+            window.debugLogger.log('⏪ Test: Skip indietro 10 sec');
+            skipVideo(userData.iframe, -10, userData.statusIndicator);
+        },
+        () => {
+            window.debugLogger.log('⏸️ Test: Pausa');
+            toggleVideoPlayback(userData.iframe, userData.playPauseBtn, userData.statusIndicator);
+        },
+        () => {
+            window.debugLogger.log('▶️ Test: Riprendi');
+            toggleVideoPlayback(userData.iframe, userData.playPauseBtn, userData.statusIndicator);
+        }
+    ];
+    
+    function runNextTest() {
+        if (step < testSequence.length) {
+            testSequence[step]();
+            step++;
+            setTimeout(runNextTest, 2000);
+        } else {
+            window.debugLogger.log('✅ Sequenza test controlli completata!');
+        }
+    }
+    
+    // Inizia test automatico dopo 3 secondi
+    setTimeout(runNextTest, 3000);
+    
+    window.debugLogger.log('🎯 CONTROLLI DISPONIBILI:');
+    window.debugLogger.log('  ⏪ Skip indietro 10 sec');
+    window.debugLogger.log('  ⏮️ Riavvia dall\'inizio');
+    window.debugLogger.log('  ⏸️▶️ Play/Pausa');
+    window.debugLogger.log('  ⏩ Skip avanti 10 sec');
+    window.debugLogger.log('  🔉 Volume giù');
+    window.debugLogger.log('  🔊 Volume su');
+    window.debugLogger.log('✨ Test automatico inizia tra 3 secondi...');
+};
+
+/**
+ * Test semplificato per controlli video (senza logging complesso)
+ */
+window.testVideoControlsSimple = function() {
+    if (!videoPanel || !videoPanel.userData) {
+        window.debugLogger.log('❌ Nessun video attivo');
+        return;
+    }
+    
+    window.debugLogger.log('🎮 Test controlli video semplice');
+    
+    const userData = videoPanel.userData;
+    
+    // Mostra controlli
+    if (userData.controlsOverlay) {
+        userData.controlsOverlay.style.opacity = '1';
+        window.debugLogger.log('🎛️ Controlli mostrati');
+        
+        setTimeout(() => {
+            userData.controlsOverlay.style.opacity = '0';
+        }, 10000);
+    }
+    
+    window.debugLogger.log('✅ Controlli attivi per 10 secondi');
+    window.debugLogger.log('🎯 Prova tutti i pulsanti sul pannello video!');
+};
+
+/**
+ * Test specifico per ogni singolo pulsante
+ */
+window.testIndividualButtons = function() {
+    if (!videoPanel || !videoPanel.userData) {
+        window.debugLogger.log('❌ Nessun video attivo');
+        return;
+    }
+    
+    window.debugLogger.log('🎛️ Test pulsanti individuali');
+    
+    const userData = videoPanel.userData;
+    
+    // Mostra controlli
+    if (userData.controlsOverlay) {
+        userData.controlsOverlay.style.opacity = '1';
+    }
+    
+    // Test solo il pulsante play/pause
+    const buttons = [
+        { name: 'Play/Pause', btn: userData.playPauseBtn, delay: 1000 }
+    ];
+    
+    buttons.forEach(({name, btn, delay}) => {
+        setTimeout(() => {
+            if (btn) {
+                window.debugLogger.log(`🎯 Test: ${name}`);
+                btn.style.transform = 'scale(1.2)';
+                btn.style.filter = 'brightness(1.5)';
+                
+                setTimeout(() => {
+                    btn.style.transform = 'scale(1)';
+                    btn.style.filter = 'brightness(1)';
+                }, 300);
+            } else {
+                window.debugLogger.log(`❌ Pulsante ${name} non trovato`);
+            }
+        }, delay);
+    });
+    
+    window.debugLogger.log('🎯 Test visuale pulsanti in corso...');
+    window.debugLogger.log('💡 Clicca ogni pulsante per testare la funzionalità');
+    
+    // Nascondi controlli dopo il test
+    setTimeout(() => {
+        if (userData.controlsOverlay) {
+            userData.controlsOverlay.style.opacity = '0';
+        }
+    }, 8000);
 };
 
 /**

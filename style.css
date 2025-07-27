@@ -47,6 +47,56 @@ body {
     box-shadow: 0 0 20px rgba(255, 107, 53, 0.5);
 }
 
+/* Controlli video personalizzati */
+#video-controls-overlay {
+    font-family: 'Arial', sans-serif;
+}
+
+#video-controls-overlay button {
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+#video-controls-overlay button:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+#video-controls-overlay button:active {
+    transform: scale(0.95);
+}
+
+#play-pause-btn {
+    background: linear-gradient(45deg, #ff6b35, #ff8c42) !important;
+    box-shadow: 0 2px 4px rgba(255, 107, 53, 0.3);
+}
+
+#play-pause-btn:hover {
+    background: linear-gradient(45deg, #ff8c42, #ff6b35) !important;
+}
+
+#restart-btn {
+    background: linear-gradient(45deg, #555, #777) !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+#restart-btn:hover {
+    background: linear-gradient(45deg, #777, #555) !important;
+}
+
+#status-indicator {
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* Area hover video */
+#video-hover-area {
+    transition: background-color 0.3s ease;
+}
+
+#video-hover-area:hover {
+    background-color: rgba(255, 107, 53, 0.05) !important;
+}
+
 /* Pannello UI */
 #ui-panel {
     position: absolute;
