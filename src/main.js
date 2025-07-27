@@ -1395,9 +1395,9 @@ function createVideoPanel(videoUrl) {
     // Crea l'oggetto CSS3D
     const css3dObject = new THREE.CSS3DObject(containerDiv);
     
-    // Posiziona il pannello in modo ottimale
-    css3dObject.position.set(0, 15, -8);
-    css3dObject.rotation.y = 0;
+    // Posiziona il pannello ruotato di 90° (non specchiato) e spostato verso sinistra
+    css3dObject.position.set(-8, 15, 0); // X più negativo = più a sinistra
+    css3dObject.rotation.y = Math.PI / 2; // 90° = rotazione verso sinistra (non specchiato)
     css3dObject.scale.set(0.025, 0.025, 0.025);
     
     // Crea un piano invisibile per il raycasting (stesso size e posizione del CSS3D)
@@ -1409,7 +1409,7 @@ function createVideoPanel(videoUrl) {
     });
     const raycastPlane = new THREE.Mesh(raycastGeometry, raycastMaterial);
     raycastPlane.position.copy(css3dObject.position);
-    raycastPlane.rotation.copy(css3dObject.rotation);
+    raycastPlane.rotation.copy(css3dObject.rotation); // Copia la stessa rotazione
     raycastPlane.userData = { 
         type: 'videoPanel', 
         isRaycastPlane: true,
@@ -2312,6 +2312,11 @@ function debugVideoSystem() {
             y: videoPanel.position.y,
             z: videoPanel.position.z
         });
+        window.debugLogger.log('Video Panel rotation', {
+            x: (videoPanel.rotation.x * 180 / Math.PI).toFixed(1) + '°',
+            y: (videoPanel.rotation.y * 180 / Math.PI).toFixed(1) + '°',
+            z: (videoPanel.rotation.z * 180 / Math.PI).toFixed(1) + '°'
+        });
         window.debugLogger.log('Video Panel scale', {
             x: videoPanel.scale.x,
             y: videoPanel.scale.y,
@@ -2839,6 +2844,82 @@ window.testIndividualButtons = function() {
             userData.controlsOverlay.style.opacity = '0';
         }
     }, 8000);
+};
+
+/**
+ * Test specifico per la rotazione del pannello
+ */
+window.testVideoRotation = function() {
+    if (!videoPanel) {
+        window.debugLogger.log('❌ Nessun video attivo per test rotazione');
+        return;
+    }
+    
+    window.debugLogger.log('🔄 TEST ROTAZIONE PANNELLO VIDEO');
+    
+    const rotation = videoPanel.rotation;
+    window.debugLogger.log('Rotazione attuale (radianti)', {
+        x: rotation.x.toFixed(3),
+        y: rotation.y.toFixed(3), 
+        z: rotation.z.toFixed(3)
+    });
+    
+    window.debugLogger.log('Rotazione attuale (gradi)', {
+        x: (rotation.x * 180 / Math.PI).toFixed(1) + '°',
+        y: (rotation.y * 180 / Math.PI).toFixed(1) + '°',
+        z: (rotation.z * 180 / Math.PI).toFixed(1) + '°'
+    });
+    
+    const expectedYRotation = 90; // 90° = rotazione verso sinistra (non specchiato)
+    const actualYRotation = rotation.y * 180 / Math.PI;
+    
+    if (Math.abs(actualYRotation - expectedYRotation) < 1) {
+        window.debugLogger.log('✅ Rotazione corretta: ' + actualYRotation.toFixed(1) + '° (atteso: 90°)');
+        window.debugLogger.log('✅ Pannello NON specchiato');
+    } else {
+        window.debugLogger.log('❌ Rotazione errata: ' + actualYRotation.toFixed(1) + '° (atteso: 90°)');
+    }
+    
+    // Verifica posizione
+    const position = videoPanel.position;
+    window.debugLogger.log('Posizione attuale', {
+        x: position.x.toFixed(1),
+        y: position.y.toFixed(1),
+        z: position.z.toFixed(1)
+    });
+    
+    if (position.x < 0) {
+        window.debugLogger.log('✅ Pannello spostato verso sinistra (x=' + position.x.toFixed(1) + ')');
+    } else {
+        window.debugLogger.log('⚠️ Pannello non spostato verso sinistra');
+    }
+    
+    // Verifica anche il raycast plane
+    if (videoPanel.userData && videoPanel.userData.raycastPlane) {
+        const raycastRotation = videoPanel.userData.raycastPlane.rotation;
+        const raycastPosition = videoPanel.userData.raycastPlane.position;
+        
+        window.debugLogger.log('Raycast Plane rotazione', {
+            x: (raycastRotation.x * 180 / Math.PI).toFixed(1) + '°',
+            y: (raycastRotation.y * 180 / Math.PI).toFixed(1) + '°',
+            z: (raycastRotation.z * 180 / Math.PI).toFixed(1) + '°'
+        });
+        
+        window.debugLogger.log('Raycast Plane posizione', {
+            x: raycastPosition.x.toFixed(1),
+            y: raycastPosition.y.toFixed(1),
+            z: raycastPosition.z.toFixed(1)
+        });
+        
+        if (Math.abs(raycastRotation.y - rotation.y) < 0.01 && 
+            Math.abs(raycastPosition.x - position.x) < 0.01) {
+            window.debugLogger.log('✅ Raycast Plane sincronizzato con pannello CSS3D');
+        } else {
+            window.debugLogger.log('❌ Raycast Plane NON sincronizzato');
+        }
+    }
+    
+    window.debugLogger.log('💡 Il pannello dovrebbe ora essere ruotato di 90° (non specchiato) e spostato verso sinistra');
 };
 
 /**
