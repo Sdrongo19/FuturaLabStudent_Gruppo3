@@ -113,4 +113,72 @@ public class VrController {
         }
     }
 
+    @PostMapping("/verifySimulazioneInCorso")
+    public boolean verifySimulazioneInCorso(@RequestBody Map<String, Integer> request) {
+        String query = "SELECT stato FROM richiesta_simulazione WHERE id = ?";
+
+        try (Connection conn = DatabaseConfig.getConnection(); PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setInt(1, request.get("idSimulazione"));
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                String stato = rs.getString("stato");
+                if ("avviato".equals(stato)) {
+                    return true;
+                } else {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    @PostMapping("/setStatoSimulazioneStudente")
+    public String setStatoSimulazioneStudente(@RequestBody Map<String, Object> request) {
+        String stato = (String) request.get("stato");
+        
+        // Validazione dello stato - accetta solo "inCorso" o "finito"
+        if (!"inCorso".equals(stato) && !"finito".equals(stato)) {
+            return "Stato non valido. I valori accettati sono: 'inCorso' o 'finito'";
+        }
+        
+        // Se lo stato richiesto è "inCorso", controlla che lo stato attuale non sia "finito"
+        if ("inCorso".equals(stato)) {
+            String checkQuery = "SELECT stato FROM simulazione_studenti WHERE id_richiesta_simulazione = ? AND id_studente = ?";
+            
+            try (Connection conn = DatabaseConfig.getConnection(); 
+                 PreparedStatement checkStmt = conn.prepareStatement(checkQuery)) {
+                checkStmt.setInt(1, (Integer) request.get("idSimulazione"));
+                checkStmt.setInt(2, (Integer) request.get("idStudente"));
+                ResultSet rs = checkStmt.executeQuery();
+                
+                if (rs.next()) {
+                    String statoAttuale = rs.getString("stato");
+                    if ("finito".equals(statoAttuale)) {
+                        return "Impossibile passare da 'finito' a 'inCorso'. Lo studente ha già completato la simulazione.";
+                    }
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+                return "Errore durante la verifica dello stato attuale";
+            }
+        }
+        
+        String query = "UPDATE simulazione_studenti SET stato = ? WHERE id_richiesta_simulazione = ? AND id_studente = ?";
+
+        try (Connection conn = DatabaseConfig.getConnection(); PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setString(1, stato);
+            stmt.setInt(2, (Integer) request.get("idSimulazione"));
+            stmt.setInt(3, (Integer) request.get("idStudente"));
+            stmt.executeUpdate();
+            return "Stato simulazione aggiornato con successo";
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return "Errore durante la modifica dello stato della simulazione";
+        }
+    }
+
 }
