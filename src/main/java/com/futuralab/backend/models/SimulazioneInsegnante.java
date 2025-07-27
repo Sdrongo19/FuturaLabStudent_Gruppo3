@@ -6,12 +6,12 @@ public class SimulazioneInsegnante {
 
     private int id;
     private Macrocategoria macrocategoria;
-    private String tipoSimulazione;
+    private int tipoSimulazione;
     private LocalDateTime dataFormattata;
     private String stato;
     private Insegnante insegnante;
 
-    public SimulazioneInsegnante(int id, Macrocategoria macrocategoria, String tipoSimulazione, LocalDateTime dataFormattata, String stato, Insegnante insegnante) {
+    public SimulazioneInsegnante(int id, Macrocategoria macrocategoria, int tipoSimulazione, LocalDateTime dataFormattata, String stato, Insegnante insegnante) {
         this.id = id;
         this.macrocategoria = macrocategoria;
         this.tipoSimulazione = tipoSimulazione;
@@ -28,7 +28,7 @@ public class SimulazioneInsegnante {
         return macrocategoria;
     }
 
-    public String getTipoSimulazione() {
+    public int getTipoSimulazione() {
         return tipoSimulazione;
     }
 

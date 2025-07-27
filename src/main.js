@@ -984,6 +984,224 @@ function isUserSessionActive() {
 }
 
 /**
+ * Mostra il banner di attesa per la simulazione
+ * @param {Object} user - Dati dell'utente loggato
+ */
+function showWaitingBanner(user) {
+    const banner = document.createElement('div');
+    banner.id = 'waiting-banner';
+    banner.className = 'login-modal';
+    
+    banner.innerHTML = `
+        <div class="login-modal-content">
+            <div class="login-header">
+                <h2>🚀 FuturaLab VR</h2>
+                <p>Ciao ${user.nome}, attendi che la tua insegnante avvii la simulazione/video</p>
+            </div>
+            
+            <div class="banner-loading">
+                <div class="loading-spinner"></div>
+                <p>In attesa dell'insegnante...</p>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(banner);
+    window.debugLogger.log('Banner di attesa mostrato per utente', user.nome);
+    
+    // Dopo 3 secondi, controlla se la simulazione è stata avviata
+    setTimeout(() => {
+        checkSimulazioneInCorso(user);
+    }, 3000);
+}
+
+/**
+ * Controlla se c'è una simulazione in corso per la classe dell'utente
+ * @param {Object} user - Dati dell'utente
+ */
+async function checkSimulazioneInCorso(user) {
+    const API_BASE_URL = 'http://localhost:80/api';
+    
+    try {
+        window.debugLogger.log('Controllo simulazione in corso per classe', user.idClasse);
+        
+        const response = await fetch(`${API_BASE_URL}/getSimulazioneInCorso`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                idClasse: user.idClasse
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const simulazioneResponse = await response.json();
+        window.debugLogger.log('Risposta simulazione in corso', simulazioneResponse);
+
+        if (simulazioneResponse.success && simulazioneResponse.simulazione) {
+            // Simulazione trovata, mostra il banner di avvio
+            hideWaitingBanner();
+            showStartSimulazioneBanner(user, simulazioneResponse.simulazione);
+        } else {
+            // Nessuna simulazione trovata, continua a controllare
+            window.debugLogger.log('Nessuna simulazione trovata, nuovo controllo tra 5 secondi');
+            setTimeout(() => {
+                checkSimulazioneInCorso(user);
+            }, 5000);
+        }
+    } catch (error) {
+        window.debugLogger.log('Errore nel controllo simulazione', error.message);
+        console.error('Errore nel controllo simulazione:', error);
+        
+        // In caso di errore, riprova dopo 10 secondi
+        setTimeout(() => {
+            checkSimulazioneInCorso(user);
+        }, 10000);
+    }
+}
+
+/**
+ * Nasconde il banner di attesa
+ */
+function hideWaitingBanner() {
+    const banner = document.getElementById('waiting-banner');
+    if (banner) {
+        banner.style.animation = 'fadeOut 0.5s ease-out';
+        setTimeout(() => {
+            if (banner.parentNode) {
+                document.body.removeChild(banner);
+            }
+        }, 500);
+    }
+}
+
+/**
+ * Mostra il banner per avviare la simulazione
+ * @param {Object} user - Dati dell'utente
+ * @param {Object} simulazione - Dati della simulazione
+ */
+function showStartSimulazioneBanner(user, simulazione) {
+    const banner = document.createElement('div');
+    banner.id = 'start-simulazione-banner';
+    banner.className = 'login-modal';
+    
+    const tipoSimulazione = simulazione.tipoSimulazione === 1 ? 'Video' : 'Simulazione';
+    
+    banner.innerHTML = `
+        <div class="login-modal-content">
+            <div class="login-header">
+                <h2>🎬 Simulazione Pronta</h2>
+                <p>La tua insegnante ha avviato un ${tipoSimulazione}</p>
+            </div>
+            
+            <div class="simulazione-info">
+                <p><strong>Insegnante:</strong> ${simulazione.insegnante.nome} ${simulazione.insegnante.cognome}</p>
+                <p><strong>Argomento:</strong> ${simulazione.macrocategoria.nome}</p>
+                <p><strong>Tipo:</strong> ${tipoSimulazione}</p>
+            </div>
+            
+            <button id="avvia-simulazione-btn" class="login-button">
+                <span class="login-text">Avvia</span>
+                <span class="login-loading" style="display: none;">Avvio in corso...</span>
+            </button>
+        </div>
+    `;
+    
+    document.body.appendChild(banner);
+    window.debugLogger.log('Banner avvio simulazione mostrato', simulazione);
+    
+    // Event listener per il pulsante Avvia
+    const avviaBtn = document.getElementById('avvia-simulazione-btn');
+    avviaBtn.addEventListener('click', () => {
+        avviaSimulazione(user, simulazione);
+    });
+}
+
+/**
+ * Avvia la simulazione per lo studente
+ * @param {Object} user - Dati dell'utente
+ * @param {Object} simulazione - Dati della simulazione
+ */
+async function avviaSimulazione(user, simulazione) {
+    const API_BASE_URL = 'http://localhost:80/api';
+    const avviaBtn = document.getElementById('avvia-simulazione-btn');
+    
+    try {
+        // Mostra loading
+        avviaBtn.disabled = true;
+        document.querySelector('#avvia-simulazione-btn .login-text').style.display = 'none';
+        document.querySelector('#avvia-simulazione-btn .login-loading').style.display = 'inline';
+        
+        window.debugLogger.log('Avvio simulazione per studente', { studente: user.id, simulazione: simulazione.id });
+        
+        const response = await fetch(`${API_BASE_URL}/setStatoSimulazioneStudente`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                idSimulazione: simulazione.id,
+                idStudente: user.id,
+                stato: 'inCorso'
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.text();
+        window.debugLogger.log('Risposta avvio simulazione', result);
+
+        if (result.includes('successo')) {
+            // Simulazione avviata con successo
+            hideStartSimulazioneBanner();
+            window.debugLogger.log('Simulazione avviata con successo per studente', user.nome);
+            
+            // Mostra messaggio di conferma
+            setTimeout(() => {
+                alert(`Simulazione avviata con successo! Buon lavoro, ${user.nome}!`);
+            }, 500);
+        } else {
+            // Errore nell'avvio
+            throw new Error(result);
+        }
+    } catch (error) {
+        window.debugLogger.log('Errore nell\'avvio simulazione', error.message);
+        console.error('Errore nell\'avvio simulazione:', error);
+        
+        // Mostra errore all'utente
+        alert(`Errore nell'avvio della simulazione: ${error.message}`);
+    } finally {
+        // Nasconde loading
+        avviaBtn.disabled = false;
+        document.querySelector('#avvia-simulazione-btn .login-text').style.display = 'inline';
+        document.querySelector('#avvia-simulazione-btn .login-loading').style.display = 'none';
+    }
+}
+
+/**
+ * Nasconde il banner di avvio simulazione
+ */
+function hideStartSimulazioneBanner() {
+    const banner = document.getElementById('start-simulazione-banner');
+    if (banner) {
+        banner.style.animation = 'fadeOut 0.5s ease-out';
+        setTimeout(() => {
+            if (banner.parentNode) {
+                document.body.removeChild(banner);
+            }
+        }, 500);
+    }
+}
+
+/**
  * Gestisce il login riuscito
  * @param {Object} user - Dati dell'utente
  */
@@ -1014,10 +1232,8 @@ function handleLoginSuccess(user) {
     enableUserFeatures(user);
     isUserLoggedIn = true; // Imposta l'utente come loggato
     
-    // Mostra un messaggio di benvenuto
-    setTimeout(() => {
-        alert(`Benvenuto nell'ambiente VR, ${user.name}! Ora puoi interagire liberamente.`);
-    }, 1000);
+    // Mostra il banner di attesa per la simulazione
+    showWaitingBanner(user);
 }
 
 /**
@@ -1334,7 +1550,27 @@ function init() {
     if (savedUser && isUserSessionActive()) {
         console.log('Utente trovato in sessione, login automatico');
         window.debugLogger.log('Login automatico da localStorage', savedUser);
-        handleLoginSuccess(savedUser);
+        // Imposta l'utente come loggato senza mostrare la modale
+        isUserLoggedIn = true;
+        
+        // Aggiorna l'interfaccia utente
+        const userInfo = document.getElementById('user-info');
+        const userName = document.getElementById('user-name');
+        const userRole = document.getElementById('user-role');
+        const logoutButton = document.getElementById('logout-button');
+        
+        if (userInfo && userName && userRole) {
+            userName.textContent = savedUser.name;
+            userRole.textContent = savedUser.role;
+            userInfo.style.display = 'block';
+            if (logoutButton) logoutButton.style.display = 'block';
+        }
+        
+        // Abilita funzionalità in base al ruolo
+        enableUserFeatures(savedUser);
+        
+        // Mostra il banner di attesa per la simulazione
+        showWaitingBanner(savedUser);
     } else {
         // Crea la modale di login statica solo se l'utente non è già loggato
         createStaticLoginModal();
