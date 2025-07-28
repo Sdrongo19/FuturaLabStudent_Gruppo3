@@ -94,11 +94,22 @@ public class VrController {
                     rs.getString("macrocategoria_video")
                 );
 
+                // Gestisce il parsing della data con o senza microsecondi
+                String dataString = rs.getString("data_formattata");
+                LocalDateTime dataSimulazione;
+                try {
+                    // Prova prima con i microsecondi
+                    dataSimulazione = LocalDateTime.parse(dataString, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS"));
+                } catch (Exception e) {
+                    // Se fallisce, prova senza microsecondi
+                    dataSimulazione = LocalDateTime.parse(dataString, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+                }
+
                 SimulazioneInsegnante simulazione = new SimulazioneInsegnante(
                     rs.getInt("simulazione_id"),
                     macrocategoria,
                     rs.getInt("tipo_simulazione"),
-                    LocalDateTime.parse(rs.getString("data_formattata"), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                    dataSimulazione,
                     rs.getString("stato"),
                     insegnante
                 );
