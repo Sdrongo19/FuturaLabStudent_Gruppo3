@@ -29,6 +29,7 @@ Un progetto web per simulazioni educative in stile VR utilizzando Three.js per l
 ## 🛠️ Installazione e Avvio
 
 ### Requisiti
+- Aver completato la configurazione, passaggi illustrati nel file Configurazione.md
 - Un browser web moderno (Chrome, Firefox, Safari, Edge)
 - Un server web locale (per evitare problemi CORS)
 
