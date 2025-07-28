@@ -31,11 +31,11 @@ const SIMULATION_STEPS = [
         title: "Afferrare la Provetta",
         speechText: "Ben fatto, ora afferra la provetta contenente il succo di limone",
         elements: [
-            { type: "water-drop", image: "simulazioneFoto/felice.png" },
-            { type: "left-hand", image: "simulazioneFoto/Mano destra bicarbonato.png" },
-            { type: "right-hand", image: "simulazioneFoto/Pugno destro.png" },
-            { type: "flask", image: "simulazioneFoto/Bicarbonato.png" },
-            { type: "test-tube", image: "simulazioneFoto/provetta acqua.png", draggable: true, id: "test-tube-limone" }
+            { type: "water-drop", image: "simulazioneFoto/mascotte.png" },
+            { type: "left-hand", image: "simulazioneFoto/Pugno sinistro.png" },
+            { type: "right-hand", image: "simulazioneFoto/Mano destra bicarbonato.png" },
+            //{ type: "flask", image: "simulazioneFoto/Bicarbonato.png" },
+            { type: "test-tube", image: "simulazioneFoto/provetta mantenuta.png", draggable: true, id: "test-tube-limone" }
         ],
         requiredAction: "grab-test-tube"
     },
@@ -44,7 +44,7 @@ const SIMULATION_STEPS = [
         title: "Versare il Contenuto",
         speechText: "Ottimo ora non ci resta che versare il contenuto della provetta all'interno dell'ampolla",
         elements: [
-            { type: "water-drop", image: "simulazioneFoto/felice.png" },
+            { type: "water-drop", image: "simulazioneFoto/mascotte.png" },
             { type: "left-hand", image: "simulazioneFoto/Sinistra provetta.png" },
             { type: "right-hand", image: "simulazioneFoto/Destra ampolla.png" },
             { type: "flask", image: "simulazioneFoto/Bicarbonato.png", dropZone: true, id: "flask-drop-zone" },
@@ -57,7 +57,7 @@ const SIMULATION_STEPS = [
         title: "Aspettare la Reazione",
         speechText: "Bravissimo, ora aspettiamo che la reazione abbia inizio e posiamo gli strumenti sul tavolo",
         elements: [
-            { type: "water-drop", image: "simulazioneFoto/felice.png" },
+            { type: "water-drop", image: "simulazioneFoto/mascotte.png" },
             { type: "left-hand", image: "simulazioneFoto/Mani che versano.png" },
             { type: "right-hand", image: "simulazioneFoto/Destra con provetta.png" },
             { type: "flask", image: "simulazioneFoto/Acqua in bicarbonato.png" }
@@ -69,7 +69,7 @@ const SIMULATION_STEPS = [
         title: "Reazione Acida",
         speechText: "Wow, si è formata tantissima schiuma! Questo significa che il succo di limone è una soluzione acida.",
         elements: [
-            { type: "water-drop", image: "simulazioneFoto/felice.png" },
+            { type: "water-drop", image: "simulazioneFoto/mascotte.png" },
             { type: "left-hand", image: "simulazioneFoto/Pugno destro.png" },
             { type: "right-hand", image: "simulazioneFoto/Pugno sinistro.png" },
             { type: "flask", image: "simulazioneFoto/Ampolla esplosiva.png" }
@@ -81,7 +81,7 @@ const SIMULATION_STEPS = [
         title: "Spiegazione pH",
         speechText: "Una sostanza è acida quando il suo pH è minore di 7. Quello del succo di limone è 2.",
         elements: [
-            { type: "water-drop", image: "simulazioneFoto/felice.png" },
+            { type: "water-drop", image: "simulazioneFoto/mascotte.png" },
             { type: "left-hand", image: "simulazioneFoto/Pugno destro.png" },
             { type: "right-hand", image: "simulazioneFoto/Pugno sinistro.png" },
             { type: "flask", image: "simulazioneFoto/Ampolla esplosiva.png" }
@@ -93,7 +93,7 @@ const SIMULATION_STEPS = [
         title: "Test con Acqua",
         speechText: "E se invece mischiassimo il bicarbonato con l'acqua?",
         elements: [
-            { type: "water-drop", image: "simulazioneFoto/felice.png" },
+            { type: "water-drop", image: "simulazioneFoto/mascotte.png" },
             { type: "left-hand", image: "simulazioneFoto/Pugno destro.png" },
             { type: "right-hand", image: "simulazioneFoto/Pugno sinistro.png" },
             { type: "flask", image: "simulazioneFoto/Bicarbonato.png", dropZone: true, id: "flask-drop-zone-2" },
@@ -331,19 +331,13 @@ function startDrag(e) {
     draggedElement = e.target;
     draggedElement.classList.add('dragging');
     
-    // Memorizza la posizione iniziale
-    const rect = draggedElement.getBoundingClientRect();
-    draggedElement.dataset.originalLeft = rect.left + 'px';
-    draggedElement.dataset.originalTop = rect.top + 'px';
-    draggedElement.dataset.originalWidth = rect.width + 'px';
-    draggedElement.dataset.originalHeight = rect.height + 'px';
-    
-    // Calcola l'offset del mouse/touch rispetto all'elemento
+    // Memorizza solo la posizione iniziale del touch/mouse
     const touch = e.touches ? e.touches[0] : e;
-    draggedElement.dataset.offsetX = touch.clientX - rect.left;
-    draggedElement.dataset.offsetY = touch.clientY - rect.top;
+    draggedElement.dataset.startX = touch.clientX;
+    draggedElement.dataset.startY = touch.clientY;
     
     console.log('🎯 Simulazione: Inizio drag per elemento:', draggedElement.dataset.id);
+    console.log('📍 Touch iniziale:', touch.clientX, touch.clientY);
     
     document.addEventListener('mousemove', onDrag, { passive: false });
     document.addEventListener('mouseup', endDrag, { passive: false });
@@ -357,27 +351,17 @@ function onDrag(e) {
     e.preventDefault();
     const touch = e.touches ? e.touches[0] : e;
     
-    // Usa gli offset calcolati per una posizione più precisa
-    const offsetX = parseFloat(draggedElement.dataset.offsetX);
-    const offsetY = parseFloat(draggedElement.dataset.offsetY);
-    const originalWidth = parseFloat(draggedElement.dataset.originalWidth);
-    const originalHeight = parseFloat(draggedElement.dataset.originalHeight);
+    // Calcola il movimento dal punto di inizio
+    const startX = parseFloat(draggedElement.dataset.startX);
+    const startY = parseFloat(draggedElement.dataset.startY);
+    const deltaX = touch.clientX - startX;
+    const deltaY = touch.clientY - startY;
     
-    // Calcola la posizione relativa al viewport
-    const x = touch.clientX - offsetX;
-    const y = touch.clientY - offsetY;
-    
-    // Limita la posizione ai bordi dello schermo
-    const maxX = window.innerWidth - originalWidth;
-    const maxY = window.innerHeight - originalHeight;
-    
-    draggedElement.style.position = 'fixed';
-    draggedElement.style.left = Math.max(0, Math.min(x, maxX)) + 'px';
-    draggedElement.style.top = Math.max(0, Math.min(y, maxY)) + 'px';
+    // Usa transform invece di position per evitare di rompere il layout
+    draggedElement.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(1.1)`;
     draggedElement.style.zIndex = '1000';
-    draggedElement.style.width = originalWidth + 'px';
-    draggedElement.style.height = originalHeight + 'px';
-    draggedElement.style.transform = 'none'; // Rimuovi eventuali transform
+    
+    console.log('🔄 Movimento:', deltaX, deltaY);
 }
 
 function endDrag(e) {
@@ -397,24 +381,15 @@ function endDrag(e) {
     
     if (!dropped) {
         // Riporta l'elemento alla posizione originale
-        draggedElement.style.position = '';
-        draggedElement.style.left = '';
-        draggedElement.style.top = '';
-        draggedElement.style.zIndex = '';
         draggedElement.style.transform = '';
-        draggedElement.style.width = '';
-        draggedElement.style.height = '';
+        draggedElement.style.zIndex = '';
     }
     
     draggedElement.classList.remove('dragging');
     
     // Pulisci i dati temporanei
-    delete draggedElement.dataset.originalLeft;
-    delete draggedElement.dataset.originalTop;
-    delete draggedElement.dataset.originalWidth;
-    delete draggedElement.dataset.originalHeight;
-    delete draggedElement.dataset.offsetX;
-    delete draggedElement.dataset.offsetY;
+    delete draggedElement.dataset.startX;
+    delete draggedElement.dataset.startY;
     
     draggedElement = null;
     
@@ -462,12 +437,7 @@ function handleDrop(draggedElement, dropZone) {
         }, 2000);
     } else {
         // Azione non corretta, riporta l'elemento
-        draggedElement.style.position = '';
-        draggedElement.style.left = '';
-        draggedElement.style.top = '';
         draggedElement.style.transform = '';
-        draggedElement.style.width = '';
-        draggedElement.style.height = '';
         draggedElement.style.zIndex = '';
         
         // Mostra feedback visivo di errore
