@@ -98,7 +98,7 @@ public class VrController {
                     rs.getInt("simulazione_id"),
                     macrocategoria,
                     rs.getInt("tipo_simulazione"),
-                    LocalDateTime.parse(rs.getString("data_formattata"), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS")),
+                    LocalDateTime.parse(rs.getString("data_formattata"), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
                     rs.getString("stato"),
                     insegnante
                 );
