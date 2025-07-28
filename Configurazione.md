@@ -18,7 +18,7 @@ Questa guida descrive tutti i passaggi necessari per configurare e avviare il ba
 - **Download**: [Apache Maven](https://maven.apache.org/download.cgi)->Scarica il binary zip archive, dovrebbe scaricarti un file zip nominato: apache-maven-3.9.11-bin.zip
                 Ora effettua l'unzip di questo archivio, e inserisci la cartella "apache-maven-3.9.11" in C:\Program Files\Apache, se la cartella Apache non esiste creala, una volta fatto questo, modifichiamo le variabili d'ambiente
                 inserendo il file bin contenuto nella cartella "apache-maven-3.9.11" nei "path" dell'utente e anche in quelli di sistema, l'ipotetico path da aggiungere è "C:\Program Files\Apache\apache-maven-3.9.10\bin" se non è questo selezionare il proprio
-                Ora applica quindi le variabili d'ambiente, adesso per vedere la modifica potrewsti dover riavviare il pc o la powershell
+                Ora applica quindi le variabili d'ambiente, adesso per vedere la modifica potresti dover riavviare il pc o la powershell
 - **Verifica installazione**:
   ```bash
   mvn -version
@@ -29,7 +29,7 @@ Questa guida descrive tutti i passaggi necessari per configurare e avviare il ba
   ```bash
   choco install ngrok
   ```
-  Quando viene chiesto di confermare l'installazione digirtare A e premere invio.
+  Quando viene chiesto di confermare l'installazione digitare A e premere invio.
 - **Verifica installazione**:
   ```bash
   ngrok version
@@ -55,6 +55,22 @@ Al termine verifica se è stato installato usando
 Esegui:
     choco --version
 Se vedi un numero di versione, l’installazione è andata a buon fine.
+
+
+## Python
+Vai al sito ufficiale di Python: https://www.python.org/downloads/ e clicca su "Download Python" (verrà automaticamente suggerita la versione più recente per il tuo sistema operativo).
+
+Una volta scaricato il file di installazione, eseguilo.
+
+Importante: prima di fare clic su "Installa", assicurati di selezionare la casella che dice "Add Python to PATH". Questo permetterà di eseguire Python da qualsiasi directory nel terminale.
+
+Clicca su "Install Now" per avviare l'installazione.
+
+- **Verifica installazione**:
+```bash
+python --version
+```
+
 
 ## Configurazione
 
