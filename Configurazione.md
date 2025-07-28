@@ -5,7 +5,7 @@ Questa guida descrive tutti i passaggi necessari per configurare e avviare il ba
 ## Prerequisiti
 
 ### 1. Java Development Kit (JDK)
-- **Versione richiesta**: JDK 11 o superiore
+- **Versione richiesta**: JDK 21
 - **Download**: [Oracle JDK](https://www.oracle.com/java/technologies/downloads/) o [OpenJDK](https://openjdk.org/)
 - **Verifica installazione**: 
   ```bash
