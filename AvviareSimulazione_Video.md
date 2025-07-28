@@ -1,6 +1,6 @@
 Avviare una simulazione o un video è molto semplice, per prima cosa dobbiamo aver completato i passaggi che avete trovato in Configurazione.md
 
-Se avete seguito tutti i passaggi, avrete l'app per l'insegnante installata sul vostro dispositivo android, e avrete il sistema per lo studente funzionante che girerà sul vostro brosware all'indirizzo http://localhost:8000/, il sistema studente cercherà ciclicamente una simulazione o video avviata dall'insengnate per poter proseguire.
+Se avete seguito tutti i passaggi, avrete l'app per l'insegnante installata sul vostro dispositivo android, e avrete il sistema per lo studente funzionante che girerà sul vostro browser all'indirizzo http://localhost:8000/, il sistema studente cercherà ciclicamente una simulazione o video avviata dall'insengnate per poter proseguire.
 
 Per far partire quindi un video o una simulazione bisogna prima di tutto effettuare il login sull'app per l'insegnante (username: H.watson, psw:12345678), dopodichè bisogna cliccare su "Inizia lezione", selezionare una materia e un argomento, e quindi scegliere se avviare un video o una simulazione, dopo aver scelto ci troveremo un report in tempo reale dello stato degli studenti, che stanno svolgendo l'esercitazione, è molto importante non uscire dalla pagina altrimenti, la simulazione verrà interrotta e gli studenti che la stavano svolgendo verranno interrotti, la stessa cosa accadrà quando cliccheremo sul tasto Termina in fondo alla pagina.
 
