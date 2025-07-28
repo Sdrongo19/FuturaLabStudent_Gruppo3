@@ -1332,6 +1332,53 @@ const ratingStyles = `
         opacity: 0.5;
         cursor: not-allowed;
     }
+
+    /* Stili per elementi draggable e dropzone */
+    .draggable {
+        cursor: grab;
+        border: 3px dashed #4CAF50 !important;
+        border-radius: 10px;
+        padding: 5px;
+        background: rgba(76, 175, 80, 0.1);
+        animation: pulse 2s infinite;
+        transition: transform 0.2s ease;
+    }
+
+    .draggable:hover {
+        background: rgba(76, 175, 80, 0.2);
+        transform: scale(1.05);
+    }
+
+    .dragging {
+        z-index: 1000;
+        transform: scale(1.1);
+        box-shadow: 0 8px 25px rgba(76, 175, 80, 0.4);
+    }
+
+    .drop-zone {
+        cursor: pointer;
+        border: 3px dashed #2196F3 !important;
+        border-radius: 10px;
+        padding: 5px;
+        background: rgba(33, 150, 243, 0.1);
+        transition: all 0.2s ease;
+    }
+
+    .drop-zone:hover {
+        background: rgba(33, 150, 243, 0.2);
+        /*transform: scale(1.05);*/
+    }
+
+    .drop-zone.active {
+        background: rgba(33, 150, 243, 0.3);
+        border-color: #1976D2 !important;
+    }
+
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(76, 175, 80, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+    }
 `;
 
 // Aggiungi gli stili al documento
