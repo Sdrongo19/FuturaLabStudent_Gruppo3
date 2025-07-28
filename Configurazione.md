@@ -127,41 +127,8 @@ ngrok http --url=supposedly-intent-gannet.ngrok-free.app 80
 - Avvia Spring Boot PRIMA di ngrok
 - Mantieni entrambi i terminali aperti durante l'esecuzione
 
-## Verifica del funzionamento
-
-1. **Controllo locale**: L'applicazione dovrebbe essere accessibile su `http://localhost:80`
-2. **Controllo remoto**: L'applicazione dovrebbe essere accessibile su `https://supposedly-intent-gannet.ngrok-free.app`
-
-### Test delle API
-Puoi testare le API con questi endpoint:
-
-```bash
-# Test locale
-curl -X POST http://localhost:80/api/login -H "Content-Type: application/json" -d '{"username":"test","password":"test"}'
-
-# Test remoto (dopo aver avviato ngrok)
-curl -X POST https://supposedly-intent-gannet.ngrok-free.app/api/login -H "Content-Type: application/json" -d '{"username":"test","password":"test"}'
+Per scoprire come avviare un'attività video o simulazione leggere attentamente il file AvviareSimulazione_Video.md
 ```
-
-## Struttura del progetto
-
-```
-FuturaLabStudent/
-├── src/main/java/com/futuralab/backend/
-│   ├── Application.java          # Classe principale Spring Boot
-│   ├── controllers/              # Controller REST
-│   └── models/                   # Modelli dati
-├── src/main/resources/
-│   └── application.properties    # Configurazione Spring Boot
-├── pom.xml                       # Configurazione Maven
-├── ngrok.yml                     # Configurazione ngrok
-├── start-backend.bat             # Script avvio Spring Boot
-├── start-backend.ps1             # Script avvio Spring Boot (PowerShell)
-├── start-ngrok.bat               # Script avvio ngrok separato
-├── install-dependencies.bat      # Script verifica dipendenze
-└── BACKEND_SETUP.md             # Questa guida
-```
-
 
 ## Risoluzione problemi comuni
 
