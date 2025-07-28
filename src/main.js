@@ -1256,10 +1256,14 @@ async function avviaSimulazione(user, simulazione) {
                 // È un video - avvia il sistema video
                 window.debugLogger.log('Avvio sistema video', simulazione.macrocategoria.video);
                 createVideoPanel(simulazione.macrocategoria.video);
+            } else if (simulazione.tipoSimulazione === 0) {
+                // È una simulazione interattiva - reindirizza alla pagina di simulazione
+                window.debugLogger.log('Avvio simulazione interattiva', simulazione.id);
+                window.location.href = `simulazione.html?simulazioneId=${simulazione.id}`;
             } else {
-                // È una simulazione normale - logic da implementare in futuro
-                window.debugLogger.log('Simulazione normale - da implementare');
-                alert(`Simulazione normale avviata! Buon lavoro, ${user.nome}!`);
+                // Tipo di simulazione non riconosciuto
+                window.debugLogger.log('Tipo simulazione non riconosciuto', simulazione.tipoSimulazione);
+                alert(`Tipo di simulazione non supportato: ${simulazione.tipoSimulazione}`);
             }
         } else {
             // Errore nell'avvio
@@ -3760,6 +3764,21 @@ function returnToMainPage() {
 }
 
 /**
+ * Gestisce il ritorno dalla pagina di simulazione
+ * Controlla se ci sono nuove attività disponibili
+ */
+async function handleReturnFromSimulation() {
+    const user = getUserFromSession();
+    if (!user) {
+        window.location.href = 'index.html';
+        return;
+    }
+    
+    // Controlla se ci sono simulazioni in corso
+    await checkSimulazioneInCorso(user);
+}
+
+/**
  * Pulisce il sistema video
  */
 function cleanupVideoSystem() {
@@ -4331,8 +4350,17 @@ function init() {
         // Abilita funzionalità in base al ruolo
         enableUserFeatures(savedUser);
         
-        // Mostra il banner di attesa per la simulazione
-        showWaitingBanner(savedUser);
+        // Controlla se si sta tornando da una simulazione
+        const urlParams = new URLSearchParams(window.location.search);
+        const fromSimulation = urlParams.get('fromSimulation');
+        
+        if (fromSimulation === 'true') {
+            // Si sta tornando da una simulazione, controlla nuove attività
+            handleReturnFromSimulation();
+        } else {
+            // Mostra il banner di attesa per la simulazione
+            showWaitingBanner(savedUser);
+        }
     } else {
         // Crea la modale di login statica solo se l'utente non è già loggato
         createStaticLoginModal();
