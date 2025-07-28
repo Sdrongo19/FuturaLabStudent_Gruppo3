@@ -92,18 +92,20 @@ Su MySQL Workbench:
     Vai su File > Open SQL Script.
     Seleziona il file futuraLab.sql e aprilo.
     Una volta che il file SQL è stato caricato, clicca su Esegui per importare i dati nel tuo database.
+    Modifica le credenziali nel file DatabaseConfig.java
 
 #### Passo 2: Preparazione del progetto
 ```bash
-# Naviga nella directory del progetto
+# Naviga nella directory del progetto, utilizza un terinale diverso da dove si ha avviato ngrok
 cd /path/to/FuturaLabStudent
+#il path è indicativo, va modificato
 
 # Compila il progetto (opzionale, verrà fatto automaticamente da spring-boot:run)
 mvn clean compile
 ```
 
 #### Passo 3: Avvio dell'applicazione Spring Boot
-In un terminale, avvia l'applicazione:
+Nel secondo terminale(dove si è nella directory di progetto), avvia l'applicazione:
 
 ```bash
 mvn spring-boot:run
