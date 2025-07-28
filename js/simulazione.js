@@ -120,34 +120,58 @@ const SIMULATION_STEPS = [
         speechText: "Sta andando benissimo, ora afferra la provetta con l'acqua",
         elements: [
             { type: "water-drop", image: "simulazioneFoto/mascotte.png" },
-            { type: "left-hand", image: "simulazioneFoto/Pugno sinistro.png" , draggable: true, id: "left-hand-draggable-step8" },
-            { type: "right-hand", image: "simulazioneFoto/Mano destra bicarbonato.png"},
-            //{ type: "flask", image: "simulazioneFoto/Bicarbonato.png", dropZone: true, id: "flask-drop-zone-2" },
+            { type: "left-hand", image: "simulazioneFoto/Pugno sinistro.png", draggable: true, id: "left-hand-draggable-step8" },
+            { type: "right-hand", image: "simulazioneFoto/mano destra bicarbonato.png" },
+            //{ type: "flask", image: "simulazioneFoto/Acqua in bicarbonato.png" }
             { type: "test-tube", image: "simulazioneFoto/provetta acqua.png", dropZone: true, id: "test-tube-drop-zone-step8" }
         ],
         requiredAction: "drag-left-hand-to-test-tube-step8"
     },
     {
         id: 9,
-        title: "Reazione Neutra",
-        speechText: "Ops, stavolta non è successo niente. L'acqua è neutra! Il suo pH è 7",
+        title: "Versiamo il Contenuto",
+        speechText: "Ottimo, abbiamo tutto il necessario, ora versiamo l'acqua nell'ampolla del bicarbonato",
         elements: [
             { type: "water-drop", image: "simulazioneFoto/mascotte.png" },
-            { type: "left-hand", image: "simulazioneFoto/Pugno sinistro.png", draggable: true, id: "left-hand-draggable-step7" },
-            { type: "right-hand", image: "simulazioneFoto/mano destra bicarbonato.png" },
+            { type: "left-hand", image: "simulazioneFoto/mano provetta acqua.png", draggable: true, id: "left-hand-draggable-step9" },
+            { type: "right-hand", image: "simulazioneFoto/mano destra bicarbonato.png", dropZone: true, id: "right-hand-drop-zone-step9" },
             //{ type: "flask", image: "simulazioneFoto/Acqua in bicarbonato.png" }
-            { type: "test-tube", image: "simulazioneFoto/provetta acqua.png", dropZone: true, id: "test-tube-drop-zone-step7" }
+            //{ type: "test-tube", image: "simulazioneFoto/provetta acqua.png", dropZone: true, id: "test-tube-drop-zone-step8" }
         ],
-        requiredAction: "drag-left-hand-to-test-tube-step8"
+        requiredAction: "drag-left-hand-to-right-hand-step9"
     },
     {
         id: 10,
+        title: "Aspettiamo la Reazione",
+        speechText: "Bravissimo, ora aspettiamo che la reazione abbia inizio e posiamo gli strumenti sul tavolo",
+        elements: [
+            { type: "water-drop", image: "simulazioneFoto/mascotte.png" },
+            //{ type: "left-hand", image: "simulazioneFoto/acqua in bicarbonato.png" },
+            //{ type: "right-hand", image: "simulazioneFoto/Pugno destro.png" },
+            { type: "flask", image: "simulazioneFoto/acqua in bicarbonato.png" }
+        ],
+        requiredAction: "wait-reaction-step10"
+    },
+    {
+        id: 11,
+        title: "Aspettiamo la Reazione",
+        speechText: "Ops, stavolta non è successo niente. L'acqua è neutra! Il suo pH è 7",
+        elements: [
+            { type: "water-drop", image: "simulazioneFoto/mascotte.png" },
+            //{ type: "left-hand", image: "simulazioneFoto/acqua in bicarbonato.png" },
+            //{ type: "right-hand", image: "simulazioneFoto/Pugno destro.png" },
+            { type: "flask", image: "simulazioneFoto/ampolla tavolo.png" }
+        ],
+        requiredAction: "observe-reaction-step11"
+    },
+    {
+        id: 12,
         title: "Fine Lezione",
         speechText: "Hai fatto davvero un ottimo lavoro qui, per oggi la nostra lezione di chimica finisce qui",
         elements: [
             { type: "water-drop", image: "simulazioneFoto/mascotte.png" },
-            { type: "left-hand", image: "simulazioneFoto/Pugno destro.png" },
-            { type: "right-hand", image: "simulazioneFoto/Pugno sinistro.png" }
+            { type: "left-hand", image: "simulazioneFoto/Pugno sinistro.png" },
+            { type: "right-hand", image: "simulazioneFoto/Pugno destro.png" }
         ],
         requiredAction: "finish-simulation"
     }
@@ -362,6 +386,8 @@ function showCurrentStep() {
         step.requiredAction === 'understand-ph' || 
         step.requiredAction === 'observe-neutral-reaction' ||
         step.requiredAction === 'wait-step6' ||
+        step.requiredAction === 'wait-reaction-step10' ||
+        step.requiredAction === 'observe-reaction-step11' ||
         step.requiredAction === 'finish-simulation') {
         
         // Aggiungi un pulsante "Continua" per questi step
@@ -501,6 +527,14 @@ function handleDrop(draggedElement, dropZone) {
         draggedElement.dataset.id === 'left-hand-draggable-step8') {
         // Step 8: mano sinistra trascinata sulla provetta
         console.log('✅ Simulazione: Mano sinistra trascinata correttamente sulla provetta!');
+        showSuccessAnimation(draggedElement, dropZone);
+        setTimeout(() => {
+            nextStep();
+        }, 1500);
+    } else if (step.requiredAction === 'drag-left-hand-to-right-hand-step9' && 
+        draggedElement.dataset.id === 'left-hand-draggable-step9') {
+        // Step 9: mano sinistra trascinata sulla mano destra
+        console.log('✅ Simulazione: Mano sinistra trascinata correttamente sulla mano destra!');
         showSuccessAnimation(draggedElement, dropZone);
         setTimeout(() => {
             nextStep();
