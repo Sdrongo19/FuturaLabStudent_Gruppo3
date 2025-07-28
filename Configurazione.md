@@ -57,7 +57,7 @@ Esegui:
 Se vedi un numero di versione, l’installazione è andata a buon fine.
 
 
-## Python
+## 4. Python
 Vai al sito ufficiale di Python: https://www.python.org/downloads/ e clicca su "Download Python" (verrà automaticamente suggerita la versione più recente per il tuo sistema operativo).
 
 Una volta scaricato il file di installazione, eseguilo.
