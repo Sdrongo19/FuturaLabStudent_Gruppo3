@@ -29,6 +29,7 @@ Questa guida descrive tutti i passaggi necessari per configurare e avviare il ba
   ```bash
   choco install ngrok
   ```
+  Quando viene chiesto di confermare l'installazione digirtare A e premere invio.
 - **Verifica installazione**:
   ```bash
   ngrok version
@@ -58,25 +59,23 @@ Se vedi un numero di versione, l’installazione è andata a buon fine.
 ## Configurazione
 
 ### 1. Configurazione ngrok
-Il file `ngrok.yml` nella root del progetto contiene l'authtoken necessario per l'autenticazione:
-
-```yaml
-agent:
-  authtoken: 2zwptUywEAzU4N2DNOG0napPHjt_4vzBvWiK8q4hYYiTJ3mu9
-```
+Dopo aver installato ngrok(punto 3 dei prerequisiti)
+```bash
+ngrok config add-authtoken 2zwptUywEAzU4N2DNOG0napPHjt_4vzBvWiK8q4hYYiTJ3mu9
+ ```
 
 ### 2. Indirizzo statico ngrok
 L'applicazione è configurata per utilizzare l'indirizzo statico:
-```
-supposedly-intent-gannet.ngrok-free.app
+```bash
+ngrok http --url=supposedly-intent-gannet.ngrok-free.app 80
 ```
 ### Avvio Manuale
 
-#### Passo 1: Verifica dipendenze
-```bash
-# Esegui lo script di verifica:
-install-dependencies.bat
-```
+#### Passo 1: Importazione DB
+Su MySQL Workbench:
+    Vai su File > Open SQL Script.
+    Seleziona il file futuraLab.sql e aprilo.
+    Una volta che il file SQL è stato caricato, clicca su Esegui per importare i dati nel tuo database.
 
 #### Passo 2: Preparazione del progetto
 ```bash
