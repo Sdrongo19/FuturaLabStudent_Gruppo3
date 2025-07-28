@@ -387,8 +387,7 @@ function showCurrentStep() {
         step.requiredAction === 'observe-neutral-reaction' ||
         step.requiredAction === 'wait-step6' ||
         step.requiredAction === 'wait-reaction-step10' ||
-        step.requiredAction === 'observe-reaction-step11' ||
-        step.requiredAction === 'finish-simulation') {
+        step.requiredAction === 'observe-reaction-step11') {
         
         // Aggiungi un pulsante "Continua" per questi step
         const continueBtn = document.createElement('button');
@@ -400,6 +399,16 @@ function showCurrentStep() {
             }, 500);
         };
         desk.appendChild(continueBtn);
+    } else if (step.requiredAction === 'finish-simulation') {
+        
+        // Aggiungi un pulsante "Termina" per lo step finale
+        const terminaBtn = document.createElement('button');
+        terminaBtn.textContent = 'Termina';
+        terminaBtn.className = 'continue-btn termina-btn';
+        terminaBtn.onclick = () => {
+            finishSimulation();
+        };
+        desk.appendChild(terminaBtn);
     }
 }
 
@@ -660,127 +669,334 @@ async function finishSimulation() {
     try {
         // Imposta lo stato della simulazione come finita
         await setStudentSimulationFinished();
+        console.log('✅ Stato simulazione aggiornato con successo');
         
         // Mostra il banner di valutazione
         showRatingBanner();
         
     } catch (error) {
-        console.error('Errore durante il completamento della simulazione:', error);
+        console.error('❌ Errore durante il completamento della simulazione:', error);
+        
+        // Mostra messaggio di errore all'utente
+        alert(`Errore nel terminare la simulazione: ${error.message}\nIl banner di valutazione verrà comunque mostrato.`);
+        
+        // In caso di errore, mostra comunque il banner di valutazione
+        showRatingBanner();
     }
 }
 
 async function setStudentSimulationFinished() {
+    const API_BASE_URL = 'http://localhost:80/api';
+    
     try {
-        const response = await fetch('/api/simulazione/finish', {
+        // Converti gli ID in numeri interi
+        const idSimulazione = parseInt(currentSimulazione.id);
+        const idStudente = parseInt(currentUser.id);
+        
+        console.log('Impostando stato studente a finito', { 
+            studente: idStudente, 
+            simulazione: idSimulazione 
+        });
+        
+        const requestBody = {
+            idSimulazione: idSimulazione,
+            idStudente: idStudente,
+            stato: 'finito'
+        };
+        
+        console.log('📤 Request body per setStatoSimulazioneStudente:', requestBody);
+        console.log('🌐 URL chiamata:', `${API_BASE_URL}/setStatoSimulazioneStudente`);
+        
+        const response = await fetch(`${API_BASE_URL}/setStatoSimulazioneStudente`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json'
             },
-            body: JSON.stringify({
-                studenteId: currentUser.id,
-                simulazioneId: currentSimulazione.id
-            })
+            body: JSON.stringify(requestBody)
         });
 
         if (!response.ok) {
-            throw new Error('Errore nel completamento della simulazione');
+            const errorText = await response.text();
+            console.error('❌ Errore server:', response.status, errorText);
+            throw new Error(`Errore server: ${response.status} - ${errorText}`);
         }
 
-        return await response.json();
+        const result = await response.text();
+        console.log('✅ Stato studente aggiornato con successo:', result);
+        
     } catch (error) {
-        console.error('Errore nel completamento simulazione:', error);
-        throw error;
+        console.error('❌ Errore nel settare stato finito:', error);
+        console.log('❌ Errore nel settare stato finito:', error.message);
+        throw error; // Rilancia l'errore per gestirlo nel chiamante
     }
 }
 
 function showRatingBanner() {
-    // Crea il banner di valutazione
     const banner = document.createElement('div');
-    banner.className = 'rating-banner';
+    banner.id = 'rating-banner';
+    banner.className = 'login-modal';
+    
     banner.innerHTML = `
-        <div class="rating-content">
-            <h3>Valuta la simulazione</h3>
-            <div class="rating-stars">
-                <span class="star" data-rating="1">⭐</span>
-                <span class="star" data-rating="2">⭐</span>
-                <span class="star" data-rating="3">⭐</span>
-                <span class="star" data-rating="4">⭐</span>
-                <span class="star" data-rating="5">⭐</span>
+        <div class="login-modal-content">
+            <div class="login-header">
+                <h2>🎬 Simulazione Completata!</h2>
+                <p>Come valuti questa esperienza?</p>
             </div>
-            <div class="rating-buttons">
-                <button id="skip-rating">Salta</button>
-                <button id="submit-rating">Invia</button>
+            
+            <div class="rating-container" style="margin: 30px 0; text-align: center;">
+                <p style="margin-bottom: 20px; font-weight: bold;">Clicca su una faccina per esprimere il tuo voto:</p>
+                
+                <div class="emoji-rating" style="display: flex; justify-content: center; gap: 30px; margin: 20px 0;">
+                    <div class="emoji-option" data-rating="1" style="cursor: pointer; padding: 15px; border-radius: 10px; transition: all 0.3s ease;">
+                        <div style="font-size: 60px; margin-bottom: 10px;">😢</div>
+                        <div style="font-weight: bold; color: #e74c3c;">Non mi è piaciuto</div>
+                    </div>
+                    
+                    <div class="emoji-option" data-rating="2" style="cursor: pointer; padding: 15px; border-radius: 10px; transition: all 0.3s ease;">
+                        <div style="font-size: 60px; margin-bottom: 10px;">😐</div>
+                        <div style="font-weight: bold; color: #f39c12;">Così così</div>
+                    </div>
+                    
+                    <div class="emoji-option" data-rating="3" style="cursor: pointer; padding: 15px; border-radius: 10px; transition: all 0.3s ease;">
+                        <div style="font-size: 60px; margin-bottom: 10px;">😊</div>
+                        <div style="font-weight: bold; color: #27ae60;">Mi è piaciuto!</div>
+                    </div>
+                </div>
+                
+                <div id="selected-rating" style="margin: 20px 0; font-size: 18px; font-weight: bold; color: #3498db; display: none;">
+                    Voto selezionato: <span id="rating-text"></span>
+                </div>
+            </div>
+            
+            <div class="rating-buttons" style="display: flex; gap: 15px; justify-content: center;">
+                <button id="confirm-rating-btn" class="login-button" disabled style="opacity: 0.5;">
+                    <span class="login-text">Conferma Voto</span>
+                    <span class="login-loading" style="display: none;">Invio in corso...</span>
+                </button>
+                
+                <button id="skip-rating-btn" class="login-button" style="background: #95a5a6;">
+                    Salta Valutazione
+                </button>
             </div>
         </div>
     `;
     
     document.body.appendChild(banner);
+    console.log('🌟 Banner valutazione mostrato');
     
-    // Aggiungi eventi per le stelle
-    const stars = banner.querySelectorAll('.star');
-    let selectedRating = 0;
+    let selectedRating = null;
     
-    stars.forEach((star, index) => {
-        star.addEventListener('click', () => {
-            selectedRating = index + 1;
-            stars.forEach((s, i) => {
-                s.style.color = i < selectedRating ? '#FFD700' : '#ccc';
+    // Event listeners per le emoji
+    const emojiOptions = document.querySelectorAll('.emoji-option');
+    emojiOptions.forEach(option => {
+        option.addEventListener('click', () => {
+            // Rimuovi selezione precedente
+            emojiOptions.forEach(opt => {
+                opt.style.background = 'transparent';
+                opt.style.transform = 'scale(1)';
             });
+            
+            // Seleziona l'opzione corrente
+            option.style.background = 'rgba(52, 152, 219, 0.2)';
+            option.style.transform = 'scale(1.1)';
+            
+            selectedRating = parseInt(option.dataset.rating);
+            
+            // Mostra il voto selezionato
+            const ratingTexts = {
+                1: '😢 Non mi è piaciuto',
+                2: '😐 Così così',
+                3: '😊 Mi è piaciuto!'
+            };
+            
+            document.getElementById('selected-rating').style.display = 'block';
+            document.getElementById('rating-text').textContent = ratingTexts[selectedRating];
+            
+            // Abilita il pulsante conferma
+            const confirmBtn = document.getElementById('confirm-rating-btn');
+            confirmBtn.disabled = false;
+            confirmBtn.style.opacity = '1';
+            
+            console.log('⭐ Voto selezionato', selectedRating);
+        });
+        
+        // Hover effects
+        option.addEventListener('mouseenter', () => {
+            if (!option.style.background.includes('rgba(52, 152, 219')) {
+                option.style.background = 'rgba(255, 255, 255, 0.1)';
+                option.style.transform = 'scale(1.05)';
+            }
+        });
+        
+        option.addEventListener('mouseleave', () => {
+            if (!option.style.background.includes('rgba(52, 152, 219')) {
+                option.style.background = 'transparent';
+                option.style.transform = 'scale(1)';
+            }
         });
     });
     
-    // Aggiungi eventi per i pulsanti
-    banner.querySelector('#skip-rating').addEventListener('click', () => {
-        submitRating(0);
+    // Event listener per conferma voto
+    document.getElementById('confirm-rating-btn').addEventListener('click', () => {
+        console.log('🔘 Pulsante Conferma Voto cliccato', selectedRating);
+        if (selectedRating) {
+            console.log('✅ Voto presente, chiamata submitRating');
+            submitRating(selectedRating);
+        } else {
+            console.log('❌ Nessun voto selezionato');
+            alert('Seleziona prima una faccina per esprimere il tuo voto!');
+        }
     });
     
-    banner.querySelector('#submit-rating').addEventListener('click', () => {
-        submitRating(selectedRating);
+    // Event listener per saltare valutazione
+    document.getElementById('skip-rating-btn').addEventListener('click', () => {
+        console.log('⏭️ Valutazione saltata dall\'utente');
+        hideRatingBanner();
+        returnToMainPage();
     });
 }
 
 async function submitRating(rating) {
+    console.log('🚀 submitRating chiamata con voto:', rating);
+    
+    if (!currentUser || !currentSimulazione) {
+        console.error('Dati utente o simulazione mancanti per la valutazione');
+        console.log('❌ Dati mancanti:', { currentUser, currentSimulazione });
+        return;
+    }
+    
+    // Prova prima con URL relativo, poi con localhost:80
+    const API_BASE_URL = 'http://localhost:80/api';
+    const confirmBtn = document.getElementById('confirm-rating-btn');
+    
+    if (!confirmBtn) {
+        console.log('❌ Pulsante conferma non trovato nel DOM');
+        return;
+    }
+    
     try {
-        const response = await fetch('/api/simulazione/rate', {
+        // Mostra loading
+        confirmBtn.disabled = true;
+        
+        const loginText = document.querySelector('#confirm-rating-btn .login-text');
+        const loginLoading = document.querySelector('#confirm-rating-btn .login-loading');
+        
+        if (loginText) loginText.style.display = 'none';
+        if (loginLoading) loginLoading.style.display = 'inline';
+        
+        // Converti gli ID in numeri interi
+        const idStudente = parseInt(currentUser.id);
+        const idSimulazione = parseInt(currentSimulazione.id);
+        
+        console.log('📤 Invio valutazione', { 
+            studente: idStudente, 
+            simulazione: idSimulazione,
+            voto: rating
+        });
+        
+        const requestBody = {
+            idStudente: idStudente,
+            idSimulazione: idSimulazione,
+            voto: rating
+        };
+        
+        console.log('📤 Request body per setVotoSimulazioneStudente:', requestBody);
+        console.log('🌐 URL chiamata:', `${API_BASE_URL}/setVotoSimulazioneStudente`);
+        
+        const response = await fetch(`${API_BASE_URL}/setVotoSimulazioneStudente`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json'
             },
-            body: JSON.stringify({
-                studenteId: currentUser.id,
-                simulazioneId: currentSimulazione.id,
-                rating: rating
-            })
+            body: JSON.stringify(requestBody)
         });
 
         if (!response.ok) {
-            throw new Error('Errore nell\'invio della valutazione');
+            const errorText = await response.text();
+            console.error('❌ Errore server:', response.status, errorText);
+            throw new Error(`Errore server: ${response.status} - ${errorText}`);
         }
 
-        // Rimuovi il banner
-        const banner = document.querySelector('.rating-banner');
-        if (banner) {
-            banner.remove();
+        const success = await response.json();
+        console.log('📬 Risposta valutazione', success);
+
+        if (success === true) {
+            console.log('✅ Valutazione inviata con successo');
+            hideRatingBanner();
+            
+            // Mostra messaggio di successo
+            alert('Grazie per la tua valutazione! 🌟');
+            returnToMainPage();
+        } else {
+            throw new Error('Il server ha restituito false');
         }
-
-        // Ritorna alla pagina principale con flag per controllare nuove attività
-        window.location.href = 'index.html?fromSimulation=true';
-
+        
     } catch (error) {
-        console.error('Errore nell\'invio valutazione:', error);
-        // In caso di errore, ritorna comunque alla pagina principale
-        window.location.href = 'index.html?fromSimulation=true';
+        console.error('Errore nell\'invio della valutazione:', error);
+        console.log('❌ Errore invio valutazione', error.message);
+        
+        // Mostra errore e torna alla pagina principale
+        alert(`Errore nell'invio della valutazione: ${error.message}\nVerrai riportato alla pagina principale.`);
+        hideRatingBanner();
+        returnToMainPage();
+        
+    } finally {
+        // Nasconde loading se il banner è ancora visibile
+        if (document.getElementById('confirm-rating-btn')) {
+            confirmBtn.disabled = false;
+            document.querySelector('#confirm-rating-btn .login-text').style.display = 'inline';
+            document.querySelector('#confirm-rating-btn .login-loading').style.display = 'none';
+        }
     }
+}
+
+/**
+ * Nasconde il banner di valutazione
+ */
+function hideRatingBanner() {
+    const banner = document.getElementById('rating-banner');
+    if (banner) {
+        banner.remove();
+        console.log('🗑️ Banner valutazione rimosso');
+    }
+}
+
+/**
+ * Torna alla pagina principale (localhost:8000)
+ */
+function returnToMainPage() {
+    console.log('🏠 Reindirizzamento a localhost:8000');
+    
+    // Reset delle variabili globali
+    currentSimulazione = null;
+    currentUser = null;
+    
+    // Ferma il monitoraggio se attivo
+    stopSimulationMonitoring();
+    
+    // Reindirizza a localhost:8000 per ripartire da capo
+    window.location.href = 'http://localhost:8000';
 }
 
 function startSimulationMonitoring() {
     simulationMonitoringInterval = setInterval(async () => {
         try {
-            const response = await fetch(`/api/simulazione/status/${currentSimulazione.id}`);
+            const response = await fetch('http://localhost:80/api/verifySimulazioneInCorso', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    idSimulazione: parseInt(currentSimulazione.id)
+                })
+            });
+            
             if (response.ok) {
-                const data = await response.json();
+                const isInCorso = await response.json();
                 
-                if (data.stato === 'terminata' && !isSimulationFinished) {
+                if (!isInCorso && !isSimulationFinished) {
                     // La simulazione è stata terminata dall'insegnante
                     clearInterval(simulationMonitoringInterval);
                     showRatingBanner();
@@ -799,10 +1015,25 @@ function stopSimulationMonitoring() {
     }
 }
 
-function terminaSimulazione() {
+async function terminaSimulazione() {
     if (confirm('Sei sicuro di voler terminare la simulazione?')) {
-        // Termina immediatamente e torna alla pagina principale
-        window.location.href = 'index.html?fromSimulation=true';
+        try {
+            // Imposta lo stato della simulazione come finita
+            await setStudentSimulationFinished();
+            console.log('✅ Stato simulazione aggiornato con successo');
+            
+            // Mostra il banner di valutazione
+            showRatingBanner();
+            
+        } catch (error) {
+            console.error('❌ Errore durante il completamento della simulazione:', error);
+            
+            // Mostra messaggio di errore all'utente
+            alert(`Errore nel terminare la simulazione: ${error.message}\nIl banner di valutazione verrà comunque mostrato.`);
+            
+            // In caso di errore, mostra comunque il banner di valutazione
+            showRatingBanner();
+        }
     }
 }
 
@@ -912,6 +1143,74 @@ const ratingStyles = `
     .rating-buttons button:last-child {
         background: #4CAF50;
         color: white;
+    }
+
+    .termina-btn {
+        background: linear-gradient(135deg, #ff6b6b, #ee5a24) !important;
+        color: white !important;
+    }
+
+    .termina-btn:hover {
+        background: linear-gradient(135deg, #ff5252, #e53935) !important;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4) !important;
+    }
+
+    /* Stili per il banner di valutazione identico a main.js */
+    .login-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.8);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+
+    .login-modal-content {
+        background: white;
+        padding: 30px;
+        border-radius: 15px;
+        text-align: center;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        max-width: 500px;
+        width: 90%;
+    }
+
+    .login-header h2 {
+        margin: 0 0 10px 0;
+        color: #333;
+        font-size: 24px;
+    }
+
+    .login-header p {
+        margin: 0 0 20px 0;
+        color: #666;
+        font-size: 16px;
+    }
+
+    .login-button {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 25px;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin: 0 5px;
+    }
+
+    .login-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+
+    .login-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
     }
 `;
 
