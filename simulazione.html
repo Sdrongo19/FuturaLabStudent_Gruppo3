@@ -206,6 +206,26 @@
             transform: scale(1.1);
         }
 
+        .hand.draggable {
+            cursor: grab;
+            border: 3px dashed #4CAF50;
+            border-radius: 10px;
+            padding: 5px;
+            background: rgba(76, 175, 80, 0.1);
+            animation: pulse 2s infinite;
+        }
+
+        .hand.draggable:hover {
+            background: rgba(76, 175, 80, 0.2);
+            transform: scale(1.05);
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(76, 175, 80, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+        }
+
         .drop-zone {
             border: 3px dashed #4CAF50;
             background: rgba(76, 175, 80, 0.1);
@@ -215,10 +235,29 @@
             animation: reaction 2s ease-in-out;
         }
 
+        .success-animation {
+            animation: successPulse 1.5s ease-in-out;
+        }
+
         @keyframes reaction {
             0% { transform: scale(1); }
             50% { transform: scale(1.2); }
             100% { transform: scale(1); }
+        }
+
+        @keyframes successPulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7); }
+            25% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(76, 175, 80, 0.3); }
+            50% { transform: scale(1.1); box-shadow: 0 0 0 20px rgba(76, 175, 80, 0.1); }
+            75% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(76, 175, 80, 0.3); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+            20% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+            80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
         }
 
         .loading-overlay {

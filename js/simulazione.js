@@ -20,11 +20,11 @@ const SIMULATION_STEPS = [
         elements: [
             { type: "water-drop", image: "simulazioneFoto/mascotte.png" },
             { type: "left-hand", image: "simulazioneFoto/Pugno sinistro.png" },
-            { type: "right-hand", image: "simulazioneFoto/Pugno destro.png" },
-            { type: "flask", image: "simulazioneFoto/Bicarbonato.png", draggable: true, id: "flask-bicarbonato" },
-            { type: "test-tube-rack", image: "simulazioneFoto/provetta acqua.png" }
+            { type: "right-hand", image: "simulazioneFoto/Pugno destro.png", draggable: true, id: "right-hand-draggable" },
+            { type: "flask", image: "simulazioneFoto/Bicarbonato.png", dropZone: true, id: "flask-bicarbonato" },
+            { type: "test-tube-rack", image: "simulazioneFoto/provetta mantenuta.png" }
         ],
-        requiredAction: "grab-flask"
+        requiredAction: "drag-right-hand-to-flask"
     },
     {
         id: 1,
@@ -246,16 +246,29 @@ function showCurrentStep() {
     const handsContainer = document.createElement('div');
     handsContainer.className = 'hands-container';
 
+    // Mano sinistra
+    const leftHandElement = step.elements.find(el => el.type === 'left-hand');
     const leftHand = document.createElement('img');
-    leftHand.src = step.elements.find(el => el.type === 'left-hand')?.image || 'simulazioneFoto/Pugno sinistro.png';
+    leftHand.src = leftHandElement?.image || 'simulazioneFoto/Pugno sinistro.png';
     leftHand.className = 'hand';
     handsContainer.appendChild(leftHand);
 
+    // Mano destra
+    const rightHandElement = step.elements.find(el => el.type === 'right-hand');
     const rightHand = document.createElement('img');
-    rightHand.src = step.elements.find(el => el.type === 'right-hand')?.image || 'simulazioneFoto/Pugno destro.png';
+    rightHand.src = rightHandElement?.image || 'simulazioneFoto/Pugno destro.png';
     rightHand.className = 'hand';
+    
+    // Controlla se la mano destra è trascinabile
+    if (rightHandElement?.draggable) {
+        rightHand.classList.add('draggable');
+        rightHand.dataset.id = rightHandElement.id;
+        rightHand.addEventListener('mousedown', startDrag, { passive: false });
+        rightHand.addEventListener('touchstart', startDrag, { passive: false });
+        console.log('🎯 Simulazione: Mano destra trascinabile aggiunta:', rightHandElement.id);
+    }
+    
     handsContainer.appendChild(rightHand);
-
     desk.appendChild(handsContainer);
 
     // Aggiungi gli elementi di laboratorio
@@ -276,8 +289,8 @@ function showCurrentStep() {
             if (element.draggable) {
                 labElement.classList.add('draggable');
                 labElement.dataset.id = element.id;
-                labElement.addEventListener('mousedown', startDrag);
-                labElement.addEventListener('touchstart', startDrag);
+                labElement.addEventListener('mousedown', startDrag, { passive: false });
+                labElement.addEventListener('touchstart', startDrag, { passive: false });
                 console.log('🎯 Simulazione: Elemento trascinabile aggiunto:', element.id);
             }
             
@@ -318,10 +331,24 @@ function startDrag(e) {
     draggedElement = e.target;
     draggedElement.classList.add('dragging');
     
-    document.addEventListener('mousemove', onDrag);
-    document.addEventListener('mouseup', endDrag);
-    document.addEventListener('touchmove', onDrag);
-    document.addEventListener('touchend', endDrag);
+    // Memorizza la posizione iniziale
+    const rect = draggedElement.getBoundingClientRect();
+    draggedElement.dataset.originalLeft = rect.left + 'px';
+    draggedElement.dataset.originalTop = rect.top + 'px';
+    draggedElement.dataset.originalWidth = rect.width + 'px';
+    draggedElement.dataset.originalHeight = rect.height + 'px';
+    
+    // Calcola l'offset del mouse/touch rispetto all'elemento
+    const touch = e.touches ? e.touches[0] : e;
+    draggedElement.dataset.offsetX = touch.clientX - rect.left;
+    draggedElement.dataset.offsetY = touch.clientY - rect.top;
+    
+    console.log('🎯 Simulazione: Inizio drag per elemento:', draggedElement.dataset.id);
+    
+    document.addEventListener('mousemove', onDrag, { passive: false });
+    document.addEventListener('mouseup', endDrag, { passive: false });
+    document.addEventListener('touchmove', onDrag, { passive: false });
+    document.addEventListener('touchend', endDrag, { passive: false });
 }
 
 function onDrag(e) {
@@ -329,20 +356,27 @@ function onDrag(e) {
     
     e.preventDefault();
     const touch = e.touches ? e.touches[0] : e;
-    const rect = draggedElement.getBoundingClientRect();
+    
+    // Usa gli offset calcolati per una posizione più precisa
+    const offsetX = parseFloat(draggedElement.dataset.offsetX);
+    const offsetY = parseFloat(draggedElement.dataset.offsetY);
+    const originalWidth = parseFloat(draggedElement.dataset.originalWidth);
+    const originalHeight = parseFloat(draggedElement.dataset.originalHeight);
     
     // Calcola la posizione relativa al viewport
-    const x = touch.clientX - rect.width / 2;
-    const y = touch.clientY - rect.height / 2;
+    const x = touch.clientX - offsetX;
+    const y = touch.clientY - offsetY;
     
     // Limita la posizione ai bordi dello schermo
-    const maxX = window.innerWidth - rect.width;
-    const maxY = window.innerHeight - rect.height;
+    const maxX = window.innerWidth - originalWidth;
+    const maxY = window.innerHeight - originalHeight;
     
     draggedElement.style.position = 'fixed';
     draggedElement.style.left = Math.max(0, Math.min(x, maxX)) + 'px';
     draggedElement.style.top = Math.max(0, Math.min(y, maxY)) + 'px';
     draggedElement.style.zIndex = '1000';
+    draggedElement.style.width = originalWidth + 'px';
+    draggedElement.style.height = originalHeight + 'px';
     draggedElement.style.transform = 'none'; // Rimuovi eventuali transform
 }
 
@@ -363,20 +397,31 @@ function endDrag(e) {
     
     if (!dropped) {
         // Riporta l'elemento alla posizione originale
-        draggedElement.style.position = 'fixed';
+        draggedElement.style.position = '';
         draggedElement.style.left = '';
         draggedElement.style.top = '';
         draggedElement.style.zIndex = '';
         draggedElement.style.transform = '';
+        draggedElement.style.width = '';
+        draggedElement.style.height = '';
     }
     
     draggedElement.classList.remove('dragging');
+    
+    // Pulisci i dati temporanei
+    delete draggedElement.dataset.originalLeft;
+    delete draggedElement.dataset.originalTop;
+    delete draggedElement.dataset.originalWidth;
+    delete draggedElement.dataset.originalHeight;
+    delete draggedElement.dataset.offsetX;
+    delete draggedElement.dataset.offsetY;
+    
     draggedElement = null;
     
-    document.removeEventListener('mousemove', onDrag);
-    document.removeEventListener('mouseup', endDrag);
-    document.removeEventListener('touchmove', onDrag);
-    document.removeEventListener('touchend', endDrag);
+    document.removeEventListener('mousemove', onDrag, { passive: false });
+    document.removeEventListener('mouseup', endDrag, { passive: false });
+    document.removeEventListener('touchmove', onDrag, { passive: false });
+    document.removeEventListener('touchend', endDrag, { passive: false });
 }
 
 function isOverlapping(element1, element2) {
@@ -393,7 +438,15 @@ function handleDrop(draggedElement, dropZone) {
     const step = SIMULATION_STEPS[currentStep];
     
     // Verifica se l'azione è corretta
-    if (step.requiredAction === 'pour-test-tube-into-flask' && 
+    if (step.requiredAction === 'drag-right-hand-to-flask' && 
+        draggedElement.dataset.id === 'right-hand-draggable') {
+        // Primo step: mano destra trascinata sull'ampolla
+        console.log('✅ Simulazione: Mano destra trascinata correttamente sull\'ampolla!');
+        showSuccessAnimation(draggedElement, dropZone);
+        setTimeout(() => {
+            nextStep();
+        }, 1500);
+    } else if (step.requiredAction === 'pour-test-tube-into-flask' && 
         draggedElement.dataset.id === 'test-tube-draggable') {
         // Reazione corretta - mostra animazione
         showReactionAnimation(draggedElement, dropZone);
@@ -412,10 +465,48 @@ function handleDrop(draggedElement, dropZone) {
         draggedElement.style.position = '';
         draggedElement.style.left = '';
         draggedElement.style.top = '';
+        draggedElement.style.transform = '';
+        draggedElement.style.width = '';
+        draggedElement.style.height = '';
+        draggedElement.style.zIndex = '';
         
         // Mostra feedback visivo di errore
         showErrorFeedback();
     }
+}
+
+function showSuccessAnimation(draggedElement, dropZone) {
+    // Animazione di successo per il primo step
+    console.log('🎉 Simulazione: Mostra animazione di successo');
+    
+    // Aggiungi classe per animazione di successo
+    dropZone.classList.add('success-animation');
+    
+    // Feedback visivo positivo
+    const successFeedback = document.createElement('div');
+    successFeedback.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(76, 175, 80, 0.9);
+        color: white;
+        padding: 20px 30px;
+        border-radius: 15px;
+        z-index: 1000;
+        font-size: 20px;
+        font-weight: bold;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        animation: fadeInOut 1.5s ease-in-out;
+    `;
+    successFeedback.textContent = '✅ Ottimo lavoro!';
+    document.body.appendChild(successFeedback);
+    
+    // Rimuovi il feedback dopo l'animazione
+    setTimeout(() => {
+        successFeedback.remove();
+        dropZone.classList.remove('success-animation');
+    }, 1500);
 }
 
 function showReactionAnimation(draggedElement, dropZone) {
