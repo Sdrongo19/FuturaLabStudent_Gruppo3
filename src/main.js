@@ -4009,11 +4009,7 @@ function createStaticLoginModal() {
                 </form>
                 
                 <div class="login-footer">
-                    <p><strong>Account di test:</strong></p>
-                    <div class="test-accounts">
-                        <div onclick="fillTestAccount('student')">👨‍🎓 Studente: testuser</div>
-                    </div>
-                    <p><small>Nota: Usa username e password del database studenti</small></p>
+                    <p><small>Nota: Usa username e password del database studenti reale</small></p>
                 </div>
             </div>
         `;

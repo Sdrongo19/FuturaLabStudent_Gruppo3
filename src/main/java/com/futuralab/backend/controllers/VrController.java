@@ -196,4 +196,28 @@ public class VrController {
             return false;
         }
     }
+
+    @PostMapping("/verifyStatoSimulazioneStudente")
+    public boolean verifyStatoSimulazioneStudente(@RequestBody Map<String, Object> request) {
+        String query = "SELECT stato FROM simulazione_studenti WHERE id_richiesta_simulazione = ? AND id_studente = ?";
+
+        try (Connection conn = DatabaseConfig.getConnection(); PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setInt(1, (Integer) request.get("idSimulazione"));
+            stmt.setInt(2, (Integer) request.get("idStudente"));
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                String stato = rs.getString("stato");
+                if ("finito".equals(stato)) {
+                    return true;
+                } else {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
 }

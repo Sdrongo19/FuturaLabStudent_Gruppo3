@@ -104,7 +104,7 @@ const SIMULATION_STEPS = [
     {
         id: 7,
         title: "Test con Acqua",
-        speechText: "E se invece mischiassimo il bicarbonato con l'acqua?, come prima cosa afferriamo l’ampolla con il bicarbonato",
+        speechText: "Proviamo a vedere cosa succede, come prima cosa afferriamo l’ampolla con il bicarbonato",
         elements: [
             { type: "water-drop", image: "simulazioneFoto/mascotte.png" },
             { type: "left-hand", image: "simulazioneFoto/Pugno sinistro.png" },
@@ -158,8 +158,8 @@ const SIMULATION_STEPS = [
         speechText: "Ops, stavolta non è successo niente. L'acqua è neutra! Il suo pH è 7",
         elements: [
             { type: "water-drop", image: "simulazioneFoto/mascotte.png" },
-            //{ type: "left-hand", image: "simulazioneFoto/acqua in bicarbonato.png" },
-            //{ type: "right-hand", image: "simulazioneFoto/Pugno destro.png" },
+            { type: "left-hand", image: "simulazioneFoto/Pugno sinistro.png" },
+            { type: "right-hand", image: "simulazioneFoto/Pugno destro.png" },
             { type: "flask", image: "simulazioneFoto/ampolla tavolo.png" }
         ],
         requiredAction: "observe-reaction-step11"
@@ -222,6 +222,26 @@ async function initializeSimulation() {
         console.log('📊 Simulazione: Caricamento dati simulazione...');
         updateDebugInfo('Caricamento dati simulazione...');
         await loadSimulazioneData(simulazioneId);
+        
+        // Verifica se lo studente ha già partecipato o se la lezione è terminata
+        console.log('🔍 Simulazione: Verifica stato studente...');
+        updateDebugInfo('Verifica stato studente...');
+        const studenteHaPartecipato = await verifyStatoSimulazioneStudente();
+        const simulazioneTerminata = await verifySimulazioneInCorso();
+        
+        if (studenteHaPartecipato) {
+            console.log('❌ Simulazione: Studente ha già partecipato');
+            alert('Hai già partecipato a questa lezione!');
+            window.location.href = 'http://localhost:8000';
+            return;
+        }
+        
+        if (!simulazioneTerminata) {
+            console.log('❌ Simulazione: Lezione terminata');
+            alert('La lezione è già terminata!');
+            window.location.href = 'http://localhost:8000';
+            return;
+        }
         
         // Avvia il monitoring
         console.log('🔄 Simulazione: Avvio monitoring...');
@@ -1082,6 +1102,107 @@ function getUserFromSession() {
     }
 }
 
+/**
+ * Verifica se lo studente ha già partecipato alla simulazione
+ */
+async function verifyStatoSimulazioneStudente() {
+    const API_BASE_URL = 'http://localhost:80/api';
+    
+    try {
+        // Converti gli ID in numeri interi
+        const idSimulazione = parseInt(currentSimulazione.id);
+        const idStudente = parseInt(currentUser.id);
+        
+        console.log('🔍 Verifica stato studente:', { 
+            studente: idStudente, 
+            simulazione: idSimulazione 
+        });
+        
+        const requestBody = {
+            idSimulazione: idSimulazione,
+            idStudente: idStudente
+        };
+        
+        console.log('📤 Request body per verifyStatoSimulazioneStudente:', requestBody);
+        console.log('🌐 URL chiamata:', `${API_BASE_URL}/verifyStatoSimulazioneStudente`);
+        
+        const response = await fetch(`${API_BASE_URL}/verifyStatoSimulazioneStudente`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ Errore server:', response.status, errorText);
+            throw new Error(`Errore server: ${response.status} - ${errorText}`);
+        }
+
+        const hasParticipated = await response.json();
+        console.log('✅ Stato studente verificato:', hasParticipated);
+        
+        return hasParticipated;
+        
+    } catch (error) {
+        console.error('❌ Errore nella verifica stato studente:', error);
+        console.log('❌ Errore nella verifica stato studente:', error.message);
+        // In caso di errore, assumiamo che lo studente non abbia partecipato
+        return false;
+    }
+}
+
+/**
+ * Verifica se la simulazione è ancora in corso
+ */
+async function verifySimulazioneInCorso() {
+    const API_BASE_URL = 'http://localhost:80/api';
+    
+    try {
+        // Converti gli ID in numeri interi
+        const idSimulazione = parseInt(currentSimulazione.id);
+        
+        console.log('🔍 Verifica simulazione in corso:', { 
+            simulazione: idSimulazione 
+        });
+        
+        const requestBody = {
+            idSimulazione: idSimulazione
+        };
+        
+        console.log('📤 Request body per verifySimulazioneInCorso:', requestBody);
+        console.log('🌐 URL chiamata:', `${API_BASE_URL}/verifySimulazioneInCorso`);
+        
+        const response = await fetch(`${API_BASE_URL}/verifySimulazioneInCorso`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ Errore server:', response.status, errorText);
+            throw new Error(`Errore server: ${response.status} - ${errorText}`);
+        }
+
+        const isInCorso = await response.json();
+        console.log('✅ Simulazione in corso verificata:', isInCorso);
+        
+        return isInCorso;
+        
+    } catch (error) {
+        console.error('❌ Errore nella verifica simulazione in corso:', error);
+        console.log('❌ Errore nella verifica simulazione in corso:', error.message);
+        // In caso di errore, assumiamo che la simulazione sia terminata
+        return false;
+    }
+}
+
 // Cleanup quando la pagina viene chiusa
 window.addEventListener('beforeunload', () => {
     stopSimulationMonitoring();
@@ -1152,7 +1273,6 @@ const ratingStyles = `
 
     .termina-btn:hover {
         background: linear-gradient(135deg, #ff5252, #e53935) !important;
-        transform: translateY(-2px);
         box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4) !important;
     }
 

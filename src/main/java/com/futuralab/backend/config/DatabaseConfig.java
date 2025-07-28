@@ -5,7 +5,7 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 
 public class DatabaseConfig {
-    private static final String URL = "jdbc:mysql://localhost:3306/futuralab";
+    private static final String URL = "jdbc:mysql://localhost:3307/futuralab";
     private static final String USER = "root";
     private static final String PASSWORD = "Giovanni04!"; // Modifica con la tua password
 
