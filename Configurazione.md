@@ -102,6 +102,9 @@ cd /path/to/FuturaLabStudent
 
 # Compila il progetto (opzionale, verrà fatto automaticamente da spring-boot:run)
 mvn clean compile
+
+#installazione 
+mvn clean install
 ```
 
 #### Passo 3: Avvio dell'applicazione Spring Boot
