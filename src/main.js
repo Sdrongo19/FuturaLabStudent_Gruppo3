@@ -591,8 +591,91 @@ function onMouseClick(event) {
             hit.object.userData && hit.object.userData.type === 'videoPanel'
         );
         
-        // PRIORITÀ: prima pulsante, poi video
-        if (buttonHit) {
+        // PRIORITÀ: elemento più vicino alla camera
+        if (buttonHit && videoHit) {
+            // Se entrambi sono rilevati, scegli quello più vicino
+            // Aggiungi un margine di tolleranza di 0.1 unità per evitare problemi di precisione
+            const distanceDifference = Math.abs(buttonHit.distance - videoHit.distance);
+            const tolerance = 0.1;
+            
+            window.debugLogger.log('🎯 CLICK DEBUG - Entrambi gli elementi rilevati:', {
+                buttonDistance: buttonHit.distance,
+                videoDistance: videoHit.distance,
+                difference: distanceDifference,
+                tolerance: tolerance,
+                buttonCloser: buttonHit.distance < videoHit.distance,
+                withinTolerance: distanceDifference < tolerance
+            });
+            
+            if (buttonHit.distance < videoHit.distance && distanceDifference > tolerance) {
+                // Pulsante è più vicino
+                const clickedObject = buttonHit.object;
+                window.debugLogger.log('🎯 CLICK DEBUG - Pulsante rilevato (più vicino):', {
+                    nome: clickedObject.name, 
+                    userData: clickedObject.userData,
+                    distance: buttonHit.distance,
+                    videoDistance: videoHit.distance
+                });
+                
+                window.debugLogger.log('🏁 Click su pulsante Termina Esercizio via raycaster');
+                
+                // Simula il click sul pulsante CSS3D
+                if (videoPanel && videoPanel.userData.terminaBtn) {
+                    const terminaBtn = videoPanel.userData.terminaBtn;
+                    window.debugLogger.log('✅ Triggering click su pulsante Termina Esercizio');
+                    
+                    // In modalità FPS, esci automaticamente dal pointer lock
+                    if (fpControls && fpControls.isLocked) {
+                        window.debugLogger.log('🔓 Uscita automatica da modalità FPS per valutazione');
+                        fpControls.unlock();
+                    }
+                    
+                    terminaBtn.click();
+                } else {
+                    window.debugLogger.log('❌ Pulsante Termina Esercizio non trovato nel videoPanel');
+                }
+            } else if (videoHit.distance < buttonHit.distance && distanceDifference > tolerance) {
+                // Video è più vicino
+                const clickedObject = videoHit.object;
+                window.debugLogger.log('🎯 CLICK DEBUG - Video rilevato (più vicino):', {
+                    nome: clickedObject.name, 
+                    userData: clickedObject.userData,
+                    distance: videoHit.distance,
+                    buttonDistance: buttonHit.distance
+                });
+                window.debugLogger.log('🎮 Click su pannello video 3D via raycaster');
+                
+                // Se è il piano di raycasting, usa il videoPanel globale
+                if (clickedObject.userData.isRaycastPlane) {
+                    window.debugLogger.log('Click rilevato su piano raycasting - toggle play/pause');
+                    if (videoPanel) {
+                        handleVideoInteractionCSS3D(videoPanel);
+                    }
+                } else {
+                    handleVideoInteractionCSS3D(clickedObject);
+                }
+            } else {
+                // Le distanze sono simili (entro la tolleranza) - priorità al video per evitare click accidentali sul pulsante
+                window.debugLogger.log('🎯 CLICK DEBUG - Distanze simili, priorità al video per sicurezza');
+                const clickedObject = videoHit.object;
+                window.debugLogger.log('🎮 Click su pannello video 3D (priorità sicurezza):', {
+                    nome: clickedObject.name, 
+                    userData: clickedObject.userData,
+                    distance: videoHit.distance,
+                    buttonDistance: buttonHit.distance
+                });
+                
+                // Se è il piano di raycasting, usa il videoPanel globale
+                if (clickedObject.userData.isRaycastPlane) {
+                    window.debugLogger.log('Click rilevato su piano raycasting - toggle play/pause');
+                    if (videoPanel) {
+                        handleVideoInteractionCSS3D(videoPanel);
+                    }
+                } else {
+                    handleVideoInteractionCSS3D(clickedObject);
+                }
+            }
+        } else if (buttonHit) {
             const clickedObject = buttonHit.object;
             window.debugLogger.log('🎯 CLICK DEBUG - Pulsante rilevato:', {
                 nome: clickedObject.name, 
